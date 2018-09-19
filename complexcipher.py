@@ -3,9 +3,9 @@ from complexciphercore import convert
 
 print("Welcome to ComplexCipher v1.4.1 by Om Gupta!")
 
-quit_wish = "y"
+quit_wish = "Y"
 
-while quit_wish == "y":
+while quit_wish == "Y":
   while True:
     type = (input("Enter function to be performed. (Encode/Decode): ").lower()).strip()
     if type == "encode" or type == "decode" or type == "e" or type == "d":
@@ -27,8 +27,8 @@ while quit_wish == "y":
   print("")
 
   while True:
-    quit_wish = input("Do you want to continue? (Y/N): ").lower()
-    if quit_wish == "y" or quit_wish == "n":
+    quit_wish = input("Do you want to continue? (Y/N): ").upper()
+    if quit_wish == "Y" or quit_wish == "N":
       break
     else:
       print("")
