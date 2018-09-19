@@ -6,8 +6,10 @@ logging.basicConfig(level=logging.INFO)
 
 import discord
 
-token = 'NDkxOTMxNTg1MzIzNTk3ODM1.DoPERA.mgg0RKedZH_oHpzs0FgXxRy2X3M'
+TOKEN = ''
 channel = '491938711693426688' #secret-codes
+
+
 
 client = discord.Client()
 
@@ -32,4 +34,4 @@ async def on_ready():
     print(client.user.id)
     print('------')
 
-client.run(token)
+client.run(TOKEN)
