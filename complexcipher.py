@@ -1,4 +1,4 @@
-#UI for ComplexCipher.
+#UI for running ComplexCipher locally.
 from complexciphercore import convert
 
 print("Welcome to ComplexCipher v1.4.1 by Om Gupta!")
