@@ -30,29 +30,29 @@ def convert(text,type): #Main function.
     for letter in range(offset_included,len(text)):
         input = text[letter].lower() #Taking the first character.
 
-    if input == "`": #"`" is converted back into a space.
-        input = " "
+        if input == "`": #"`" is converted back into a space.
+            input = " "
 
-    if input not in dictionary: #Checking if the user entered an unsupported character.
-        return "Sorry, \"%s\" is not supported." % (input)
+        if input not in dictionary: #Checking if the user entered an unsupported character.
+            return "Sorry, \"%s\" is not supported." % (input)
 
-    key = (dictionary.index(input) + mult) #Converts the input character into its index in the dictionary, and then adds the multiplier to it to convert it to something else.
-    key %= 42 #Ensuring that the index is in the range of the dictionary.
+        key = (dictionary.index(input) + mult) #Converts the input character into its index in the dictionary, and then adds the multiplier to it to convert it to something else.
+        key %= 42 #Ensuring that the index is in the range of the dictionary.
 
-    output += dictionary[key] #Converting the new index to a character and adding it to the output string.
-    print("%s -> %s (%s)" % (input,dictionary[key],key))
+        output += dictionary[key] #Converting the new index to a character and adding it to the output string.
+        print("%s -> %s (%s)" % (input,dictionary[key],key))
 
-    offset += 1 #Increasing offset, increasing and flipping multiplier for maximum scrambling.
-    if mult > 0:
-        mult += offset
-    elif mult < 0:
-        mult -= offset
-    mult *= -1
+        offset += 1 #Increasing offset, increasing and flipping multiplier for maximum scrambling.
+        if mult > 0:
+            mult += offset
+        elif mult < 0:
+            mult -= offset
+        mult *= -1
 
-    #Algorithm end
+        #Algorithm end
 
-    if output[(len(output) - 1)] == " ": #If the last character is a space, it is replaced with "`" so it isn't lost.
-        output = output[0:(len(output) - 1)] + "`"
+        if output[(len(output) - 1)] == " ": #If the last character is a space, it is replaced with "`" so it isn't lost.
+            output = output[0:(len(output) - 1)] + "`"
 
     print("")
     return output
