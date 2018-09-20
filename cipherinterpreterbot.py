@@ -6,7 +6,7 @@ logging.basicConfig(level=logging.INFO)
 
 import discord
 
-TOKEN = 'NDkxOTMxNTg1MzIzNTk3ODM1.DoPERA.mgg0RKedZH_oHpzs0FgXxRy2X3M'
+TOKEN = ''
 channel = '491938711693426688' #secret-codes
 
 client = discord.Client()
