@@ -51,8 +51,8 @@ def convert(text,type): #Main function.
 
         #Algorithm end
 
-        if output[(len(output) - 1)] == " ": #If the last character is a space, it is replaced with "`" so it isn't lost.
-            output = output[0:(len(output) - 1)] + "`"
+    if output[(len(output) - 1)] == " ": #If the last character is a space, it is replaced with "`" so it isn't lost.
+        output = output[0:(len(output) - 1)] + "`"
 
     print("")
     return output
