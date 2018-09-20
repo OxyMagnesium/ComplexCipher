@@ -1,33 +1,49 @@
 import discord
 import logging
-from complexciphercore import convert
+import complexciphercore
+import time
 
 logging.basicConfig(level=logging.INFO)
 
-import discord
-
 TOKEN = ''
-channel = '491938711693426688' #secret-codes
+dest_channel = '491938711693426688' #secret-codes
 
 client = discord.Client()
 
 @client.event
 async def on_message(message):
+    gmtime = time.gmtime()
+    msgtime = '%s:%s:%s UTC' % (gmtime.tm_hour, gmtime.tm_min, gmtime.tm_sec)
     content = message.content
+    channel = message.channel
 
     if message.author == client.user:
         return
 
-    print("\nChecking message by %s in %s..." % (message.author,message.channel))
+    print("\n(@%s) Checking message by %s in %s..." % (msgtime, message.author, channel))
 
-    if int(content[0:(int(content[0]) + 1)]) in range(11,99999):
-        msg = ('{0.author.mention} said in %s:\n```%s```' % (message.channel, convert(content,'decode'))).format(message)
-        await client.send_message(client.get_channel(channel),msg)
-        print("Succesfully decoded.")
+    try:
+        if content.startswith('!e'):
+            print("Ident as encode request.")
+            content = (content.split(' ',maxsplit = 1))
+            content.pop(0)
+            msg = ('(@%s) {0.author.mention} asked to encode ```%s``` in %s. Output:\n```%s```' % (msgtime, *content, channel, complexciphercore.convert(*content,'encode'))).format(message)
+            await client.send_message(client.get_channel(dest_channel),msg)
+            print("Succesfully encoded.")
+
+        if int(content[0:(int(content[0]) + 1)]) in range(11,999999):
+            print("Ident as code to be decoded.")
+            msg = ('(@%s) {0.author.mention} said in %s:\n```%s```' % (msgtime, channel, complexciphercore.convert(content,'decode'))).format(message)
+            await client.send_message(client.get_channel(dest_channel),msg)
+            print("Succesfully decoded.")
+    except ValueError:
+        print("Message not relevant.")
+    except IndexError:
+        print("Message not relevant.")
 
 @client.event
 async def on_ready():
-    print('Logged in as')
+    print('\nLogged in as')
     print(client.user.name)
     print(client.user.id)
     print('------')
