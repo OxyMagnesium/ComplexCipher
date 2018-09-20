@@ -8,7 +8,7 @@ def convert(text,type): #Main function.
 
   if type == "encode" or type == "e": #Checking whether to encode or decode. If encoding, a random offset is added to the front of the string and used to offset the multiplier, increasing scrambling.
     random.seed()
-    randlist = [random.randint(1,9), random.randint(10,99), random.randint(100,999), random.randint(1000,9999)]
+    randlist = [random.randint(1,9), random.randint(10,99), random.randint(100,999), random.randint(1000,9999), random.randint(10000,99999), random.randint(100000,999999)]
     offset = random.choice(randlist)
     offset_l = len(str(offset))
 
