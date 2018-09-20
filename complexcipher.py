@@ -1,7 +1,7 @@
 #UI for running ComplexCipher locally.
-from complexciphercore import convert
+import complexciphercore
 
-print("Welcome to ComplexCipher v1.4.1 by Om Gupta!")
+print("Welcome to ComplexCipher %s by Om Gupta!" % complexciphercore.VERSION)
 
 while True:
   while True:
@@ -20,6 +20,6 @@ while True:
   print("")
 
   print("Output:")
-  print(convert(text,type))
+  print(complexciphercore.convert(text,type))
 
   print("")

@@ -1,4 +1,6 @@
 #Core function of ComplexCipher.
+VERSION = '1.4.2'
+
 def convert(text,type): #Main function.
   import random
   dictionary = ['0', '!', 'a', 'b', '1', 'c', 'd', '2', 'e', 'f', ',', 'g', 'h', '3', 'i', 'j','.', 'k', 'l', '4', 'm', ' ', 'n', '5', 'o', 'p', ':', 'q', 'r', '6', 's', 't', '\'', 'u', 'v', '7', 'w', 'x', '8', 'y', 'z', '?', '9']
