@@ -1,9 +1,9 @@
 #Core function of ComplexCipher.
-VERSION = '1.4.2'
+VERSION = '1.4.3'
 
 def convert(text,type): #Main function.
     import random
-    dictionary = ['0', '!', 'a', 'b', '1', 'c', 'd', '2', 'e', 'f', ',', 'g', 'h', '3', 'i', 'j','.', 'k', 'l', '4', 'm', ' ', 'n', '5', 'o', 'p', ':', 'q', 'r', '6', 's', 't', '\'', 'u', 'v', '7', 'w', 'x', '8', 'y', 'z', '?', '9']
+    dictionary = ['0' , '!' , 'a' , 'b' , '1' , 'c' , 'd' , '2' , 'e' , '*' , 'f' , ',' , 'g' , '/' , 'h' , '3' , 'i' , 'j' , '.' , 'k' , 'l' , '4' , 'm' , ' ' , 'n' , '5' , 'o' , 'p' , ':' , 'q' , 'r' , '6' , 's' , '\"' , 't' , '\'' , 'u' , '-' , 'v' , '7' , 'w' , 'x' , '8' , 'y' , 'z' , '?' , '9']
 
     text = text.strip() #Setting up requirements for the algorithm.
     offset_included = 0
@@ -37,7 +37,7 @@ def convert(text,type): #Main function.
             return "Sorry, \"%s\" is not supported." % (input)
 
         key = (dictionary.index(input) + mult) #Converts the input character into its index in the dictionary, and then adds the multiplier to it to convert it to something else.
-        key %= 42 #Ensuring that the index is in the range of the dictionary.
+        key %= len(dictionary) #Ensuring that the index is in the range of the dictionary.
 
         output += dictionary[key] #Converting the new index to a character and adding it to the output string.
         print("%s -> %s (%s)" % (input,dictionary[key],key))
