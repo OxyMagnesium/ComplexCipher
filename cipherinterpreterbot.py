@@ -1,3 +1,4 @@
+#Discord bot for running ComplexCipher.
 import discord
 import logging
 import complexciphercore
@@ -5,7 +6,7 @@ import time
 
 logging.basicConfig(level=logging.INFO)
 
-token = ''
+token = '' #Manually add token here.
 server_channel = '491938711693426688' #secret-codes
 
 if token == '':
@@ -38,18 +39,18 @@ async def on_message(message):
         dest_channel = server_channel
 
     try:
-        if content.startswith('!e'):
+        if content.startswith('!e'): #Check for encode request.
             print("Ident as encode request.")
             content = (content.split(' ',maxsplit = 1))
             content.pop(0)
-            msg = ('(@%s) {0.author.mention} asked to encode ``` %s ``` in %s. Output:\n``` %s ```' % (msgtime, *content, channel, complexciphercore.convert(*content,'encode'))).format(message)
+            msg = ('(@%s) {0.author.mention} asked to encode \n` %s `\nin %s. Output:\n` %s `' % (msgtime, *content, channel, complexciphercore.convert(*content,'encode'))).format(message)
             await client.send_message(client.get_channel(dest_channel),msg)
             print("Succesfully encoded.")
             return
 
-        if int(content[0:(int(content[0]) + 1)]) in range(11,6999999):
+        if int(content[0:(int(content[0]) + 1)]) in range(11,9999999999): #Check for encoded text.
             print("Ident as code to be decoded.")
-            msg = ('(@%s) {0.author.mention} said in %s:\n``` %s ```' % (msgtime, channel, complexciphercore.convert(content,'decode'))).format(message)
+            msg = ('(@%s) {0.author.mention} said in %s:\n` %s `' % (msgtime, channel, complexciphercore.convert(content,'decode'))).format(message)
             await client.send_message(client.get_channel(dest_channel),msg)
             print("Succesfully decoded.")
             return
@@ -58,7 +59,7 @@ async def on_message(message):
             print("Message not relevant.")
             return
 
-    except ValueError:
+    except ValueError: #The method used to check for encoded text throws errors if it turns out not to be a code, hence this.
         print("Message not relevant.")
         return
     except IndexError:
