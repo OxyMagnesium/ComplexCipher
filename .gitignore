@@ -1,4 +1,6 @@
 # Byte-compiled / optimized / DLL files
+token.txt
+
 __pycache__/
 *.py[cod]
 *$py.class
