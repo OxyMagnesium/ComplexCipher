@@ -1,0 +1,7 @@
+[SERVERS]
+kafe_pepe = "354621400260149249"
+enerx_18_19 = "469070887195508747"
+
+[CHANNELS]
+kafe_pepe = "491938711693426688" #secret-codes
+enerx_18_19 = "470121695529795587" #sneaky-text
