@@ -3,6 +3,7 @@ import discord
 import logging
 import complexciphercore
 import time
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -15,10 +16,17 @@ if token == '': #Get token if it's not already in the code.
         file = open('token.txt')
         token = file.read()
         file.close()
+        print("Token acquired from file.")
     except FileNotFoundError:
-        print("Token not found. Please check that the file is correctly named or add the token directly into the code.")
-        end_stop = input("Press enter to quit.")
-        quit()
+        print("Token file not found.")
+        try:
+            token = os.environ('TOKEN')
+            print("Token acquired from environment variable.")
+        except KeyError:
+            print("Token environment variable not found.")
+            print("Token auto detection failed. Stopping execution.")
+            end_stop = input("Press enter to quit.")
+            quit()
 
 file = open('config.txt') #Get list of serviced servers and their corresponding IDs.
 
@@ -40,7 +48,7 @@ for line in file:
         pass
 
 file.close()
-print("Servers and channels initialized.\nservers = {0}\nchannels = {1}\n".format(servers, channels))
+print("\nServers and channels initialized.\nservers = {0}\nchannels = {1}\n".format(servers, channels))
 
 client = discord.Client()
 
