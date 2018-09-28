@@ -21,7 +21,7 @@ if token == '': #Get token if it's not already in the code.
         quit()
 
 file = open('config.txt') #Get list of serviced servers and their corresponding IDs.
-section = ''
+
 for line in file:
     line = line.strip()
     if line.startswith('[') and line.endswith(']'):
@@ -38,15 +38,16 @@ for line in file:
             channels[name] = id
     except IndexError:
         pass
+
 file.close()
-print("Servers and channels initialized.\nservers = %s\nchannels = %s\n" % (servers, channels))
+print("Servers and channels initialized.\nservers = {0}\nchannels = {1}\n".format(servers, channels))
 
 client = discord.Client()
 
 @client.event
 async def on_message(message):
     gmtime = time.gmtime() #Get message parameters.
-    msgtime = '%s:%s:%s UTC' % (gmtime.tm_hour, gmtime.tm_min, gmtime.tm_sec)
+    msgtime = '{0}:{1}:{2} UTC'.format(gmtime.tm_hour, gmtime.tm_min, gmtime.tm_sec)
     content = message.content
     channel = message.channel
 
@@ -60,35 +61,35 @@ async def on_message(message):
         server = servers[message.server.id]
         dest_channel = client.get_channel(channels[server])
 
-    print("\n(@%s) Checking message by %s in %s: %s..." % (msgtime, message.author, server, channel))
+    print("(@{0}) Checking message by {1.author} in {2}: #{3}...".format(msgtime, message, server, channel))
 
     try:
         if content.startswith('!e') or content.startswith('~e'): #Check for encode request.
             print("Ident as encode request.")
-            content = (content.split(' ',maxsplit = 1))
+            content = content.split(' ', maxsplit = 1)
             content.pop(0)
-            msg = ('(@%s) {0.author.mention} asked to encode ` %s ` in %s: ' % (msgtime, *content, channel)).format(message)
-            output = '``` %s ```' % complexciphercore.convert(*content, 'encode')
+            msg = '(@{0}) {1.author.mention} asked to encode ` {2} ` in #{3}:'.format(msgtime, message, *content, channel)
+            output = '``` {0} ```'.format(complexciphercore.convert(*content, 'encode'))
             await client.send_message(dest_channel, msg)
             await client.send_message(dest_channel, output)
-            print("Succesfully encoded.")
+            print("Succesfully encoded.\n")
             return
 
         if int(content[0:(int(content[0]) + 1)]) in range(11,9999999999): #Check for encoded text.
             print("Ident as code to be decoded.")
-            msg = ('(@%s) {0.author.mention} said in %s: ' % (msgtime, channel)).format(message)
-            output = '``` %s ```' % complexciphercore.convert(content, 'decode')
+            msg = '(@{0}) {1.author.mention} said in #{2}:'.format(msgtime, message, channel)
+            output = '``` {0} ```'.format(complexciphercore.convert(content, 'decode'))
             await client.send_message(dest_channel, msg)
             await client.send_message(dest_channel, output)
-            print("Succesfully decoded.")
+            print("Succesfully decoded.\n")
             return
 
         else:
-            print("Message not relevant.")
+            print("Message not relevant.\n")
             return
 
-    except (ValueError, IndexError): #The method used to check for encoded text throws errors if it turns out not to be a code, hence this.
-        print("Message not relevant.")
+    except (ValueError, IndexError): #The method used to check for encoded text throws errors if it turns out not to be a cipher, hence this.
+        print("Message not relevant.\n")
         return
 
 @client.event
@@ -96,7 +97,6 @@ async def on_ready():
     print('\nLogged in as')
     print(client.user.name)
     print(client.user.id)
-    print('Running ComplexCipher %s.' % complexciphercore.VERSION)
-    print('------')
+    print('Running ComplexCipher {0}.\n'.format(complexciphercore.VERSION))
 
 client.run(token)
