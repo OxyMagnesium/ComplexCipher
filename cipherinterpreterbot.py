@@ -20,7 +20,7 @@ if token == '': #Get token if it's not already in the code.
     except FileNotFoundError:
         print("Token file not found.")
         try:
-            token = os.environ('TOKEN')
+            token = os.environ['TOKEN']
             print("Token acquired from environment variable.")
         except KeyError:
             print("Token environment variable not found.")
