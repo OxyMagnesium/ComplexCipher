@@ -62,6 +62,15 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    if content.startswith('~setchannel'): #Command to set current channel as output channel.
+        content = content.split(' ', maxsplit = 1)
+        if content[1] == 'current':
+            servers[message.server.id] = message.server
+            channels[message.server] = channel.id
+            print("Channel added.\nServer: {0}\nChannel: #{1}\n".format(message.server, channel))
+            await client.send_message(client.get_channel(channels[message.server]), 'Set channel #{0} as output channel.'.format(message.channel))
+            return
+
     if channel.is_private == True: #Ascertain message destination.
         server = 'DM'
         dest_channel = client.get_channel(channel.id)
@@ -72,7 +81,7 @@ async def on_message(message):
     print("(@{0}) Checking message by {1.author} in {2}: #{3}...".format(msgtime, message, server, channel))
 
     try:
-        if content.startswith('!e') or content.startswith('~e'): #Check for encode request.
+        if content.startswith('~e') or content.startswith('!e'): #Check for encode request.
             print("Ident as encode request.")
             content = content.split(' ', maxsplit = 1)
             content.pop(0)
@@ -106,5 +115,6 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('Running ComplexCipher {0}.\n'.format(complexciphercore.VERSION))
+    await client.change_presence(game=discord.Game(name='Making ciphers circa 2018'))
 
 client.run(token)
