@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 token = '' #Manually add token here.
 servers = {}
 channels = {}
+maintenance = False
 
 if token == '': #Get token if it's not already in the code.
     try:
@@ -27,8 +28,10 @@ if token == '': #Get token if it's not already in the code.
             print("Token auto detection failed. Stopping execution.")
             end_stop = input("Press enter to quit.")
             quit()
+else:
+    print("Token acquired from code.")
 
-file = open('config.txt') #Get list of serviced servers and their corresponding IDs.
+file = open('config.txt') #Get list of serviced servers and their corresponding output channels and IDs.
 
 for line in file:
     line = line.strip()
@@ -62,6 +65,25 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    global maintenance
+
+    if content.startswith('~maintenance'): #Command to enable maintenance mode.
+        content = content.split(' ', maxsplit = 1)
+        if content[1] == 'enable':
+            maintenance = True
+            print('(@{0}) Maintenance mode is enabled.\n'.format(msgtime))
+            await client.send_message(client.get_channel(channel.id), 'Maintenance mode is enabled.')
+            return
+        if content[1] == 'disable':
+            maintenance = False
+            print('(@{0}) Maintenance mode is disabled.\n'.format(msgtime))
+            await client.send_message(client.get_channel(channel.id), 'Maintenance mode is disabled.')
+            return
+        return
+
+    if maintenance == True:
+        return
+
     if content.startswith('~setchannel'): #Command to set current channel as output channel.
         content = content.split(' ', maxsplit = 1)
         if content[1] == 'current':
@@ -70,6 +92,7 @@ async def on_message(message):
             print("Channel added.\nServer: {0}\nChannel: #{1}\n".format(message.server, channel))
             await client.send_message(client.get_channel(channels[message.server]), 'Set channel #{0} as output channel.'.format(message.channel))
             return
+        return
 
     if channel.is_private == True: #Ascertain message destination.
         server = 'DM'
@@ -91,7 +114,6 @@ async def on_message(message):
             await client.send_message(dest_channel, output)
             print("Succesfully encoded.\n")
             return
-
         if int(content[0:(int(content[0]) + 1)]) in range(11,9999999999): #Check for encoded text.
             print("Ident as code to be decoded.")
             msg = '(@{0}) {1.author.mention} said in #{2}:'.format(msgtime, message, channel)
@@ -100,11 +122,8 @@ async def on_message(message):
             await client.send_message(dest_channel, output)
             print("Succesfully decoded.\n")
             return
-
-        else:
-            print("Message not relevant.\n")
-            return
-
+        print("Message not relevant.\n")
+        return
     except (ValueError, IndexError): #The method used to check for encoded text throws errors if it turns out not to be a cipher, hence this.
         print("Message not relevant.\n")
         return
