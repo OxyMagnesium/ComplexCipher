@@ -57,8 +57,7 @@ client = discord.Client()
 
 @client.event
 async def on_message(message):
-    gmtime = time.gmtime() #Get message parameters.
-    msgtime = '{0}:{1}:{2} UTC'.format(gmtime.tm_hour, gmtime.tm_min, gmtime.tm_sec)
+    msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
     content = message.content
     channel = message.channel
 
@@ -71,12 +70,14 @@ async def on_message(message):
         content = content.split(' ', maxsplit = 1)
         if content[1] == 'enable':
             maintenance = True
-            print('(@{0}) Maintenance mode is enabled.\n'.format(msgtime))
+            print('{0} Maintenance mode is enabled.\n'.format(msgtime))
+            await client.change_presence(game = discord.Game(name = 'Maintenance mode'))
             await client.send_message(client.get_channel(channel.id), 'Maintenance mode is enabled.')
             return
         if content[1] == 'disable':
             maintenance = False
-            print('(@{0}) Maintenance mode is disabled.\n'.format(msgtime))
+            print('{0} Maintenance mode is disabled.\n'.format(msgtime))
+            await client.change_presence(game = discord.Game(name = 'Making ciphers circa 2018'))
             await client.send_message(client.get_channel(channel.id), 'Maintenance mode is disabled.')
             return
         return
@@ -101,14 +102,14 @@ async def on_message(message):
         server = servers[message.server.id]
         dest_channel = client.get_channel(channels[server])
 
-    print("(@{0}) Checking message by {1.author} in {2}: #{3}...".format(msgtime, message, server, channel))
+    print("{0} Checking message by {1.author} in {2}: #{3}...".format(msgtime, message, server, channel))
 
     try:
         if content.startswith('~e') or content.startswith('!e'): #Check for encode request.
             print("Ident as encode request.")
             content = content.split(' ', maxsplit = 1)
             content.pop(0)
-            msg = '(@{0}) {1.author.mention} asked to encode ` {2} ` in #{3}:'.format(msgtime, message, *content, channel)
+            msg = '{0} {1.author.mention} asked to encode ` {2} ` in #{3}:'.format(msgtime, message, *content, channel)
             output = '``` {0} ```'.format(complexciphercore.convert(*content, 'encode'))
             await client.send_message(dest_channel, msg)
             await client.send_message(dest_channel, output)
@@ -116,7 +117,7 @@ async def on_message(message):
             return
         if int(content[0:(int(content[0]) + 1)]) in range(11,9999999999): #Check for encoded text.
             print("Ident as code to be decoded.")
-            msg = '(@{0}) {1.author.mention} said in #{2}:'.format(msgtime, message, channel)
+            msg = '{0} {1.author.mention} said in #{2}:'.format(msgtime, message, channel)
             output = '``` {0} ```'.format(complexciphercore.convert(content, 'decode'))
             await client.send_message(dest_channel, msg)
             await client.send_message(dest_channel, output)
@@ -134,6 +135,6 @@ async def on_ready():
     print(client.user.name)
     print(client.user.id)
     print('Running ComplexCipher {0}.\n'.format(complexciphercore.VERSION))
-    await client.change_presence(game=discord.Game(name='Making ciphers circa 2018'))
+    await client.change_presence(game = discord.Game(name = 'Making ciphers circa 2018'))
 
 client.run(token)
