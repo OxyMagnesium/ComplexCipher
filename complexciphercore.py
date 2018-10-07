@@ -1,5 +1,5 @@
 #Core function of ComplexCipher.
-VERSION = '1.5.0'
+VERSION = '1.5.1'
 
 def convert(text, type): #Main function.
     import random
@@ -18,7 +18,7 @@ def convert(text, type): #Main function.
         offset_l = len(str(offset))
 
         mult = 1 * offset
-        output = '%s%s' % (str(offset_l),str(offset))
+        output = '{0}{1}'.format(str(offset_l), str(offset))
 
     elif type == 'decode': #If decoding, the initial offset is retrieved from the front of the string and that character is skipped by the algorithm.
         offset_l = int(text[0]) + 1
@@ -30,10 +30,10 @@ def convert(text, type): #Main function.
 
     #Algorithm start
 
-    for letter in range(offset_included,len(text)):
-        input = text[letter] #Selecting a character.
+    for letter in range(offset_included, len(text)): #Selecting a character.
+        input = text[letter]
 
-        if input.isalpha() and type == 'encode':
+        if input.isalpha() and type == 'encode': #While encoding, if an input character is uppercase, '|' is added before the converted character.
             if input.isupper() and caps == False:
                 caps = True
                 change_case = True
@@ -41,7 +41,7 @@ def convert(text, type): #Main function.
                 caps = False
                 change_case = True
 
-        if input == '|':
+        if input == '|' and type == 'decode': #If '|' shows up while decoding, that means that all characters until the next '|' are to be uppercase and vice versa.
             if caps == False:
                 caps = True
             elif caps == True:
@@ -52,7 +52,7 @@ def convert(text, type): #Main function.
             input = ' '
 
         if input.lower() not in dictionary: #Checking if the user entered an unsupported character.
-            return "Sorry, \'%s\' is not supported." % (input)
+            return "Sorry, \'{0}\' is not supported.".format(input)
 
         key = (dictionary.index(input.lower()) + mult) #Converts the input character into its index in the dictionary, and then adds the multiplier to it to convert it to something else.
         key %= len(dictionary) #Ensuring that the index is in the range of the dictionary.
@@ -61,16 +61,16 @@ def convert(text, type): #Main function.
             change_case = False
             buffer += '|'
 
-        if caps == True and type == 'decode':
+        if caps == True and type == 'decode': #Converting the character into its key in the dictionary. While decoding, the output letter is uppercase or lowercase according to the caps variable, and while encoding it is random.
             buffer += dictionary[key].upper()
         elif caps == False and type == 'decode':
             buffer += dictionary[key].lower()
         else:
             buffer += random.choice([dictionary[key].upper(), dictionary[key].lower()])
 
-        output += buffer #Converting the new index to a character and adding it to the output string.
+        output += buffer
+        print("{0} -> {1} ({2})".format(input, buffer, key))
         buffer = ''
-        print("%s -> %s (%s)" % (input,dictionary[key],key))
 
         offset += 1 #Increasing offset, increasing and flipping multiplier for maximum scrambling.
         if mult > 0:
