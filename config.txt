@@ -7,3 +7,5 @@ CIB Test Range = "494923626500456463"
 Kafe Pepe = "491938711693426688" #secret-codes
 EnerX Systems 2018-19 = "470121695529795587" #sneaky-text
 CIB Test Range = "494923784390705170" #b
+
+[SUGGESTIONS]
