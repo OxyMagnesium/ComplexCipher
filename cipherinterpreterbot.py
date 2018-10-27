@@ -17,6 +17,7 @@ token = '' #Manually add token here.
 guilds = {}
 channels = {}
 maintenance = False
+bot.remove_command('help')
 
 if token == '': #Get token if it's not already in the code.
     try:
@@ -61,6 +62,23 @@ print("\nGuilds and channels initialized.\nguilds = {0}\nchannels = {1}\n".forma
 #--------------------------------------------------
 #Commands start
 
+@bot.command() #Command to display help.
+async def help(ctx):
+    buffer = '''```
+    CIPHER FUNCTIONS
+    ~e <text>                                                                   - Encode text
+    ~d <text>                                                                   - Decode text
+
+    SUGGESTION FUNCTIONS
+    ~suggest <text>                                                             - Add suggestion to list
+    ~suggestions <function> <*parameters>
+        view                                                                    - View current suggestions
+        clear                                                                   - Clear all current suggestions
+        remove <X, Y, Z,...>                                                    - Remove suggestions tagged X, Y, Z,...
+    ```'''
+    await ctx.send(buffer)
+    print("Displayed help.\n")
+
 @bot.command() #Command to change operating channel for cipher functions.
 async def setchannel(ctx):
     msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
@@ -84,7 +102,7 @@ async def e(ctx):
         await dest_channel.send(output)
         print("Succesfully encoded.\n")
     except IndexError:
-        await ctx.send('Invalid syntax. (~e <text>)')
+        await ctx.send('Invalid syntax. Usage: ~e <text>')
 
 @bot.command() #Command to decode text.
 async def d(ctx):
@@ -98,7 +116,7 @@ async def d(ctx):
         await dest_channel.send(output)
         print("Succesfully decoded.\n")
     except IndexError:
-        await ctx.send('Invalid syntax. (~d <text>)')
+        await ctx.send('Invalid syntax. Usage: ~d <text>')
 
 @bot.command() #Command to accept suggestions.
 async def suggest(ctx):
@@ -106,7 +124,6 @@ async def suggest(ctx):
     content = ctx.message.content.split(' ', maxsplit = 1)[1]
     buffer = ''
     write = False
-    print("Ident as suggestion command.")
     with open('config.txt', 'r') as file:
         for line in file:
             line = line.strip()
@@ -125,69 +142,80 @@ async def suggest(ctx):
 
 @bot.command() #Command to manage suggestions.
 async def suggestions(ctx):
-    msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
-    content = ctx.message.content.split(' ', maxsplit = 2)[1]
-    if content == 'view': #Subcommand to view existing suggestions for the guild.
-        buffer = '```\n'
-        seq = 'A'
-        with open('config.txt', 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line.startswith('[') and line.endswith(']'):
-                    section = line[1:-1]
-                if section != 'SUGGESTIONS':
-                    continue
-                line = line.split('=', maxsplit = 1)
-                if line[0].strip() == str(ctx.message.guild.id):
-                    buffer += '{0}: {1}\n'.format(seq, line[1].strip())
-                    seq = chr(ord(seq) + 1)
-        msg = await ctx.send('Current suggestions:\n' + buffer + '```')
-        seq = ord(seq)
-        seq_i = 'A'
-        while seq > 65:
-            emoji = discord.utils.get(bot.emojis, name = 'letter_{0}'.format(seq_i))
-            await msg.add_reaction(emoji)
-            seq -= 1
-            seq_i = chr(ord(seq_i) + 1)
-        print("Displayed suggestions.\n")
-        return
-    if content == 'clear': #Subcommand to clear all existing suggestions for the guild.
-        buffer = ''
-        with open('config.txt', 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line.startswith('[') and line.endswith(']'):
-                    section = line[1:-1]
-                if section == 'SUGGESTIONS' and line.split('=', maxsplit = 1)[0].strip() == str(ctx.message.guild.id):
-                    continue
-                buffer += line + '\n'
-        with open('config.txt', 'w') as file:
-            file.write(buffer)
-        await ctx.send('Suggestions cleared.')
-        print("Cleared suggestions.\n")
-        return
-    if content == 'remove': #Subcommand to remove specific suggestions for the guild.
-        buffer = ''
-        r_list = ctx.message.content.split(' ', maxsplit = 2)[2].split(', ')
-        seq = 65
-        for i in range(0, len(r_list)):
-            r_list[i] = ord(r_list[i].upper())
-        with open('config.txt', 'r') as file:
-            for line in file:
-                line = line.strip()
-                if line.startswith('[') and line.endswith(']'):
-                    section = line[1:-1]
-                if section == 'SUGGESTIONS' and line.split('=', maxsplit = 1)[0].strip() == str(ctx.message.guild.id):
-                    if seq in r_list:
-                        seq += 1
+    try:
+        msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
+        content = ctx.message.content.split(' ', maxsplit = 2)[1]
+
+        if content == 'view': #Subcommand to view existing suggestions for the guild.
+            buffer = '```\n'
+            seq = 'A'
+            with open('config.txt', 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if line.startswith('[') and line.endswith(']'):
+                        section = line[1:-1]
+                    if section != 'SUGGESTIONS':
                         continue
-                    seq += 1
-                buffer += line + '\n'
-        with open('config.txt', 'w') as file:
-            file.write(buffer)
-        await ctx.send('Suggestions removed.')
-        print("Removed suggestions.\n")
-        return
+                    line = line.split('=', maxsplit = 1)
+                    if line[0].strip() == str(ctx.message.guild.id):
+                        buffer += '{0}: {1}\n'.format(seq, line[1].strip())
+                        seq = chr(ord(seq) + 1)
+            if buffer == '```\n':
+                await ctx.send('No current suggestions. Use ~suggest <text> to add new ones.')
+                print('Suggestions for guild empty.')
+                return
+            msg = await ctx.send('Current suggestions:\n' + buffer + '```')
+            seq = ord(seq)
+            seq_i = 'A'
+            while seq > 65:
+                emoji = discord.utils.get(bot.emojis, name = 'letter_{0}'.format(seq_i))
+                await msg.add_reaction(emoji)
+                seq -= 1
+                seq_i = chr(ord(seq_i) + 1)
+            print("Displayed suggestions.\n")
+            return
+
+        if content == 'clear': #Subcommand to clear all existing suggestions for the guild.
+            buffer = ''
+            with open('config.txt', 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if line.startswith('[') and line.endswith(']'):
+                        section = line[1:-1]
+                    if section == 'SUGGESTIONS' and line.split('=', maxsplit = 1)[0].strip() == str(ctx.message.guild.id):
+                        continue
+                    buffer += line + '\n'
+            with open('config.txt', 'w') as file:
+                file.write(buffer)
+            await ctx.send('Suggestions cleared.')
+            print("Cleared suggestions.\n")
+            return
+
+        if content == 'remove': #Subcommand to remove specific suggestions for the guild.
+            buffer = ''
+            r_list = ctx.message.content.split(' ', maxsplit = 2)[2].split(', ')
+            seq = 65
+            for i in range(0, len(r_list)):
+                r_list[i] = ord(r_list[i].upper())
+            with open('config.txt', 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if line.startswith('[') and line.endswith(']'):
+                        section = line[1:-1]
+                    if section == 'SUGGESTIONS' and line.split('=', maxsplit = 1)[0].strip() == str(ctx.message.guild.id):
+                        if seq in r_list:
+                            seq += 1
+                            continue
+                        seq += 1
+                    buffer += line + '\n'
+            with open('config.txt', 'w') as file:
+                file.write(buffer)
+            await ctx.send('Suggestions removed.')
+            print("Removed suggestions.\n")
+            return
+
+    except IndexError:
+        await ctx.send('Invalid syntax. Usage: ~suggestions <function> <*parameters>')
 
 #Commands end
 #--------------------------------------------------
