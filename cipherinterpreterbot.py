@@ -101,8 +101,10 @@ async def e(ctx):
         await dest_channel.send(msg)
         await dest_channel.send(output)
         print("Succesfully encoded.\n")
+        return
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~e <text>')
+        return
 
 @bot.command() #Command to decode text.
 async def d(ctx):
@@ -110,13 +112,15 @@ async def d(ctx):
         msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 1)[1]
         print("Ident as decode request.")
-        msg = '{0} {1.message.author.mention} said in #{1.message.channel}:'.format(msgtime, ctx)
+        msg = '{0} {1.message.author.mention} asked to decode ` {2} ` in #{1.message.channel}:'.format(msgtime, ctx, content)
         output = '``` {0} ```'.format(complexciphercore.convert(content, 'decode'))
         await dest_channel.send(msg)
         await dest_channel.send(output)
         print("Succesfully decoded.\n")
+        return
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~d <text>')
+        return
 
 @bot.command() #Command to accept suggestions.
 async def suggest(ctx):
@@ -175,7 +179,7 @@ async def suggestions(ctx):
             print("Displayed suggestions.\n")
             return
 
-        if content == 'clear': #Subcommand to clear all existing suggestions for the guild.
+        elif content == 'clear': #Subcommand to clear all existing suggestions for the guild.
             buffer = ''
             with open('config.txt', 'r') as file:
                 for line in file:
@@ -191,7 +195,7 @@ async def suggestions(ctx):
             print("Cleared suggestions.\n")
             return
 
-        if content == 'remove': #Subcommand to remove specific suggestions for the guild.
+        elif content == 'remove': #Subcommand to remove specific suggestions for the guild.
             buffer = ''
             r_list = ctx.message.content.split(' ', maxsplit = 2)[2].split(', ')
             seq = 65
@@ -214,8 +218,13 @@ async def suggestions(ctx):
             print("Removed suggestions.\n")
             return
 
+        else:
+            await ctx.send('Invalid syntax. Usage: ~suggestions <function> <*parameters>')
+            return
+
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~suggestions <function> <*parameters>')
+        return
 
 #Commands end
 #--------------------------------------------------
@@ -264,6 +273,7 @@ async def on_message(message):
         msg = "{0} :wave:".format(random.choice(['Hi', 'Hello', 'Hey']))
         await dest_channel.send(msg)
         print("Succesfully greeted.\n")
+        return
 
     await bot.process_commands(message)
 
