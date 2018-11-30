@@ -9,7 +9,7 @@ import random
 
 logging.basicConfig(level=logging.INFO)
 
-#--------------------------------------------------
+################################################################################
 #Initialization start
 
 bot = commands.Bot('~')
@@ -59,7 +59,7 @@ with open('config.txt') as file: #Get list of serviced guilds and their correspo
 print("\nGuilds and channels initialized.\nguilds = {0}\nchannels = {1}\n".format(guilds, channels))
 
 #Initialization end
-#--------------------------------------------------
+################################################################################
 #Commands start
 
 @bot.command() #Command to display help.
@@ -83,9 +83,41 @@ async def help(ctx):
 async def setchannel(ctx):
     msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
     content = ctx.message.content.split(' ', maxsplit = 1)[1]
+    buffer = ''
+    writeG = False
+    writeC = False
     if content == 'current':
         guilds[ctx.message.guild.id] = ctx.message.guild
         channels[ctx.message.guild] = ctx.message.channel.id
+        with open('config.txt', 'r') as file:
+            overwrite = False
+            for line in file:
+                if line.split('=', maxsplit = 1)[0].strip() == ctx.message.guild.name:
+                    overwrite = True
+        with open('config.txt', 'r') as file:
+            for line in file:
+                line = line.strip()
+                if line.startswith('[') and line.endswith(']'):
+                    section = line[1:-1]
+                    if section == 'GUILDS' and overwrite == False:
+                        writeG = True
+                    elif section == 'CHANNELS' and overwrite == False:
+                        writeC = True
+                if line.split('=', maxsplit = 1)[0].strip() == ctx.message.guild.name and section == 'GUILDS':
+                    buffer += '{0} = "{1}"\n'.format(ctx.message.guild.name, ctx.message.guild.id)
+                    continue
+                elif line.split('=', maxsplit = 1)[0].strip() == ctx.message.guild.name and section == 'CHANNELS':
+                    buffer += '{0} = "{1}" #{2}\n'.format(ctx.message.guild.name, ctx.message.channel.id, ctx.message.channel.name)
+                    continue
+                buffer += line + '\n'
+                if writeG:
+                    buffer += '{0} = "{1}"\n'.format(ctx.message.guild.name, ctx.message.guild.id)
+                    writeG = False
+                elif writeC:
+                    buffer += '{0} = "{1}" #{2}\n'.format(ctx.message.guild.name, ctx.message.channel.id, ctx.message.channel.name)
+                    writeC = False
+        with open('config.txt', 'w') as file:
+            file.write(buffer)
         print("Channel added.\nGuild: {0}\nChannel: #{1}\n".format(ctx.message.guild, ctx.message.channel))
         await ctx.send('Set channel #{0} as output channel.'.format(ctx.message.channel))
         return
@@ -227,7 +259,7 @@ async def suggestions(ctx):
         return
 
 #Commands end
-#--------------------------------------------------
+################################################################################
 
 @bot.event
 async def on_message(message):
@@ -258,12 +290,16 @@ async def on_message(message):
         return
 
     global dest_channel
-    if isinstance(channel, discord.abc.PrivateChannel): #Determining message destination.
-        guild = 'DM'
+    try:
+        if isinstance(channel, discord.abc.PrivateChannel): #Determining message destination.
+            guild = 'DM'
+            dest_channel = bot.get_channel(channel.id)
+        else:
+            guild = guilds[message.guild.id]
+            dest_channel = bot.get_channel(channels[guild])
+    except KeyError: #Guild does not exist in config file.
+        guild = message.guild.name
         dest_channel = bot.get_channel(channel.id)
-    else:
-        guild = guilds[message.guild.id]
-        dest_channel = bot.get_channel(channels[guild])
 
     print("{0} Checking message by {1.author} in {2}: #{3}...".format(msgtime, message, guild, channel))
 
