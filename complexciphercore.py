@@ -1,7 +1,7 @@
 #Core function of ComplexCipher.
-VERSION = '1.5.1'
+VERSION = '1.5.2'
 
-def convert(text, type): #Main function.
+def convert(text, type, args = ''): #Main function.
     import random
     dictionary = ['0' , '!' , 'a' , 'b' , '1' , 'c' , 'd' , '2' , 'e' , '(' , 'f' , ',' , 'g' , '/' , 'h' , '3' , 'i' , 'j' , '.' , 'k' , 'l' , '4' , 'm' , ' ' , 'n' , '5' , 'o' , 'p' , ':' , 'q' , 'r' , '6' , 's' , '-' , 't' , '\'' , 'u' , ')' , 'v' , '7' , 'w' , 'x' , '8' , 'y' , 'z' , '?' , '9']
 
@@ -12,9 +12,19 @@ def convert(text, type): #Main function.
     change_case = False
 
     if type == 'encode': #Checking whether to encode or decode. If encoding, a random offset is added to the front of the string and used to offset the multiplier, increasing scrambling.
-        random.seed()
-        randlist = [random.randint(1,9), random.randint(10,99), random.randint(100,999), random.randint(1000,9999), random.randint(10000,99999), random.randint(100000,999999), random.randint(1000000,9999999), random.randint(10000000,99999999), random.randint(100000000,999999999)]
-        offset = random.choice(randlist)
+        if '-seed' not in args: #Offset can be manually set using arguments.
+            random.seed()
+            randlist = [random.randint(1,9), random.randint(10,99), random.randint(100,999), random.randint(1000,9999), random.randint(10000,99999), random.randint(100000,999999), random.randint(1000000,9999999), random.randint(10000000,99999999), random.randint(100000000,999999999)]
+            offset = random.choice(randlist)
+        else:
+            args_s = args.split('-')
+            for arg in args_s:
+                arg = arg.strip()
+                if 'seed' not in arg:
+                    continue
+                else:
+                    offset = int(arg.split('(')[1].split(')')[0])
+                    break
         offset_l = len(str(offset))
 
         mult = 1 * offset
@@ -68,8 +78,10 @@ def convert(text, type): #Main function.
         else:
             buffer += random.choice([dictionary[key].upper(), dictionary[key].lower()])
 
+        if '-noprint' not in args: #If "-noprint" argument was added, skip printing conversion.
+            print("{0} -> {1} ({2})".format(input, buffer, key))
+
         output += buffer
-        print("{0} -> {1} ({2})".format(input, buffer, key))
         buffer = ''
 
         offset += 1 #Increasing offset, increasing and flipping multiplier for maximum scrambling.
