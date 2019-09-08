@@ -7,7 +7,9 @@ import time
 import os
 import random
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format = '%(levelname)s:%(name)s:(%(asctime)s): %(message)s',
+                    datefmt = '%d-%b-%y %H:%M:%S',
+                    level = logging.INFO)
 
 ################################################################################
 #Initialization start
@@ -24,19 +26,19 @@ if token == '': #Get token if it's not already in the code.
         file = open('token.txt')
         token = file.read()
         file.close()
-        print("Token acquired from file.")
+        logging.info("Token acquired from file.")
     except FileNotFoundError:
-        print("Token file not found.")
+        logging.warning("Token file not found.")
         try:
-            token = os.environ['TOKEN']
-            print("Token acquired from environment variable.")
+            token = os.environ['CIB_TOKEN']
+            logging.info("Token acquired from environment variable.")
         except KeyError:
-            print("Token environment variable not found.")
-            print("Token auto detection failed. Stopping execution.")
-            end_stop = input("Press enter to quit.")
+            logging.warning("Token environment variable not found.")
+            logging.error("Token auto detection failed. Stopping execution.")
+            input("Press enter to quit.")
             quit()
 else:
-    print("Token acquired from code.")
+    logging.info("Token acquired from code.")
 
 with open('config.txt') as file: #Get list of serviced guilds and their corresponding output channels and IDs.
     for line in file:
@@ -56,7 +58,7 @@ with open('config.txt') as file: #Get list of serviced guilds and their correspo
                 channels[name] = id
         except IndexError:
             continue
-print("\nGuilds and channels initialized.\nguilds = {0}\nchannels = {1}\n".format(guilds, channels))
+logging.info("Guilds and channels initialized.")
 
 #Initialization end
 ################################################################################
@@ -77,11 +79,10 @@ async def help(ctx):
         remove <X, Y, Z,...>                                                    - Remove suggestions tagged X, Y, Z,...
     ```'''
     await ctx.send(buffer)
-    print("Displayed help.\n")
+    logging.info("Displayed help for {0}.".format(ctx.message.author))
 
 @bot.command() #Command to change operating channel for cipher functions.
 async def setchannel(ctx):
-    msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
     content = ctx.message.content.split(' ', maxsplit = 1)[1]
     buffer = ''
     writeG = False
@@ -118,7 +119,7 @@ async def setchannel(ctx):
                     writeC = False
         with open('config.txt', 'w') as file:
             file.write(buffer)
-        print("Channel added.\nGuild: {0}\nChannel: #{1}\n".format(ctx.message.guild, ctx.message.channel))
+        logging.info("Channel added - Guild: {0}; Channel: #{1}.".format(ctx.message.guild, ctx.message.channel))
         await ctx.send('Set channel #{0} as output channel.'.format(ctx.message.channel))
         return
 
@@ -127,12 +128,11 @@ async def e(ctx):
     try:
         msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 1)[1]
-        print("Ident as encode request.")
+        logging.info("Processing encode request from {0}.".format(ctx.message.author))
         msg = '{0} {1.message.author.mention} asked to encode ` {2} ` in #{1.message.channel}:'.format(msgtime, ctx, content)
-        output = '``` {0} ```'.format(complexciphercore.convert(content, 'encode'))
+        output = '``` {0} ```'.format(complexciphercore.convert(content, 'encode', '-noprint'))
         await dest_channel.send(msg)
         await dest_channel.send(output)
-        print("Succesfully encoded.\n")
         return
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~e <text>')
@@ -143,12 +143,11 @@ async def d(ctx):
     try:
         msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 1)[1]
-        print("Ident as decode request.")
+        logging.info("Processing decode request from {0}.".format(ctx.message.author))
         msg = '{0} {1.message.author.mention} asked to decode ` {2} ` in #{1.message.channel}:'.format(msgtime, ctx, content)
-        output = '``` {0} ```'.format(complexciphercore.convert(content, 'decode'))
+        output = '``` {0} ```'.format(complexciphercore.convert(content, 'decode', '-noprint'))
         await dest_channel.send(msg)
         await dest_channel.send(output)
-        print("Succesfully decoded.\n")
         return
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~d <text>')
@@ -174,7 +173,7 @@ async def suggest(ctx):
     with open('config.txt', 'w') as file:
         file.write(buffer)
     await ctx.send('Your suggestion has been recorded.')
-    print("Suggestion added.\n")
+    logging.info("Suggestion added in {0}.".format(ctx.message.guild))
 
 @bot.command() #Command to manage suggestions.
 async def suggestions(ctx):
@@ -198,7 +197,6 @@ async def suggestions(ctx):
                         seq = chr(ord(seq) + 1)
             if buffer == '```\n':
                 await ctx.send('No current suggestions. Use ~suggest <text> to add new ones.')
-                print('Suggestions for guild empty.')
                 return
             msg = await ctx.send('Current suggestions:\n' + buffer + '```')
             seq = ord(seq)
@@ -208,7 +206,7 @@ async def suggestions(ctx):
                 await msg.add_reaction(emoji)
                 seq -= 1
                 seq_i = chr(ord(seq_i) + 1)
-            print("Displayed suggestions.\n")
+            logging.info("Displayed suggestions in {0}.".format(ctx.message.guild))
             return
 
         elif content == 'clear': #Subcommand to clear all existing suggestions for the guild.
@@ -224,7 +222,7 @@ async def suggestions(ctx):
             with open('config.txt', 'w') as file:
                 file.write(buffer)
             await ctx.send('Suggestions cleared.')
-            print("Cleared suggestions.\n")
+            logging.info("Cleared suggestions in {0}.".format(ctx.message.guild))
             return
 
         elif content == 'remove': #Subcommand to remove specific suggestions for the guild.
@@ -247,7 +245,7 @@ async def suggestions(ctx):
             with open('config.txt', 'w') as file:
                 file.write(buffer)
             await ctx.send('Suggestions removed.')
-            print("Removed suggestions.\n")
+            logging.info("Removed suggestions in {0}.".format(ctx.message.guild))
             return
 
         else:
@@ -273,13 +271,13 @@ async def on_message(message):
         global maintenance #Maintenance mode toggle checking.
         if message.content.split(' ', maxsplit = 1)[1] == 'enable':
             maintenance = True
-            print('{0} Maintenance mode is enabled.\n'.format(msgtime))
+            logging.warning('Maintenance mode is enabled.')
             await bot.change_presence(activity = discord.Game(name = 'Maintenance mode'))
             await channel.send('Maintenance mode is enabled.')
             return
         if message.content.split(' ', maxsplit = 1)[1] == 'disable':
             maintenance = False
-            print('{0} Maintenance mode is disabled.\n'.format(msgtime))
+            logging.warning('Maintenance mode is disabled.')
             await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
             await channel.send('Maintenance mode is disabled.')
             return
@@ -301,24 +299,19 @@ async def on_message(message):
         guild = message.guild.name
         dest_channel = bot.get_channel(channel.id)
 
-    print("{0} Checking message by {1.author} in {2}: #{3}...".format(msgtime, message, guild, channel))
-
     if message.content.lower() == 'hi' or message.content.lower() == 'hello' or message.content.lower() == 'hey': #:wave:
-        print("Ident as greeting.")
+        logging.info("Processing greeting.")
         dest_channel = channel
         msg = "{0} :wave:".format(random.choice(['Hi', 'Hello', 'Hey']))
         await dest_channel.send(msg)
-        print("Succesfully greeted.\n")
         return
 
     await bot.process_commands(message)
 
 @bot.event
 async def on_ready():
-    print('\nLogged in as')
-    print(bot.user.name)
-    print(bot.user.id)
-    print('Running ComplexCipher {0}.\n'.format(complexciphercore.VERSION))
+    logging.info('Logged in as {0.name} (ID: {0.id})'.format(bot.user))
+    logging.info('Running ComplexCipher {0}.'.format(complexciphercore.VERSION))
     await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
 
 bot.run(token)
