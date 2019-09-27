@@ -6,6 +6,7 @@ import logging
 import time
 import os
 import random
+import requests
 
 logging.basicConfig(format = '%(levelname)s:%(name)s:(%(asctime)s): %(message)s',
                     datefmt = '%d-%b-%y %H:%M:%S',
@@ -20,6 +21,8 @@ guilds = {}
 channels = {}
 maintenance = False
 bot.remove_command('help')
+
+me = bot.get_channel(591295364498194571)
 
 if token == '': #Get token if it's not already in the code.
     try:
@@ -313,5 +316,11 @@ async def on_ready():
     logging.info('Logged in as {0.name} (ID: {0.id})'.format(bot.user))
     logging.info('Running ComplexCipher {0}.'.format(complexciphercore.VERSION))
     await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
+
+    ip = requests.get('https://api.ipify.org').text
+    logging.info(f'Current external IP address is {ip}.')
+    dest = bot.get_channel(channels['Egto'])
+    await dest.send(f'I just came online with IP address {ip}.')
+    logging.info('Sent logon message to Egto.')
 
 bot.run(token)
