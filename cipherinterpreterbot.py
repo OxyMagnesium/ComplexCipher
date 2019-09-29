@@ -84,6 +84,12 @@ async def help(ctx):
     await ctx.send(buffer)
     logging.info("Displayed help for {0}.".format(ctx.message.author))
 
+@bot.command() #Command to get the IP address of the server
+async def ip(ctx):
+    ip = requests.get('https://api.ipify.org').text
+    await ctx.send('Current IP address is {0}.'.format(ip))
+    logging.info("{0} requested server IP.".format(ctx.message.author))
+
 @bot.command() #Command to change operating channel for cipher functions.
 async def setchannel(ctx):
     content = ctx.message.content.split(' ', maxsplit = 1)[1]
@@ -316,11 +322,5 @@ async def on_ready():
     logging.info('Logged in as {0.name} (ID: {0.id})'.format(bot.user))
     logging.info('Running ComplexCipher {0}.'.format(complexciphercore.VERSION))
     await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
-
-    ip = requests.get('https://api.ipify.org').text
-    logging.info(f'Current external IP address is {ip}.')
-    dest = bot.get_channel(channels['Egto'])
-    await dest.send(f'I just came online with IP address {ip}.')
-    logging.info('Sent logon message to Egto.')
 
 bot.run(token)
