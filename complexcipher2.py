@@ -1,126 +1,175 @@
 # New and improved core that is actually useful and has applications (maybe)
-VERSION = '2.0.0'
+VERSION = '2.1.0'
 
-# [[A(2)] [B(1)] [C(v)] [text(v)]] (62)
-# A specifies the length of the entire lock
-# B specifies the number of lock digits to be read at a time
-# C represents the lock digits which affect the offset being used
+import logging
+from secrets import randbelow, choice
+from numpy import base_repr as base_n
+from timeit import default_timer as timer
 
-# The entire generated block gets converted into a hexadecimal representation of
-# each character in it to make it easier on the eyes and avoid rendering issues
-# with the non-graphical characters in there. The number thus generated is
-# multiplied with a two digit hexadecimal number that is appended to the start
-# of the string to make it look less not random and bring the total length of
-# the block to 128 characters, which happens to be the length of a SHA512 hash.
+standard_dictionary = (  '0A28292A2B303132333435363738393A3B40414243444546'
+                       + '4748494A4B505152535455565758595A5B60616263646566'
+                       + '6768696A6B707172737475767778797A7B80818283848586'
+                       + '8788898A8B909192939495969798999A9BA0A1A2A3A4A5A6')
 
-# The only way to decode the cipher even if you do have this program is to have
-# the correct dictionary. As a dictionary is 92 characters long, there are is a
-# total of 92! unique dictionaries, a number that is on the order of 10^142.
-
-from secrets import randbelow
-
-standard_dictionary = (  '\n !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKL'
-                       + 'MNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz')
-
-def randof(digits):
-    return 10**(digits - 1) + randbelow(10**(digits) - 10**(digits - 1))
+def randof(digits, base = 10):
+    return base**(digits - 1) + randbelow(base**(digits) - base**(digits - 1))
 
 
-def to_hex(text):
+def randstr(length, dictionary = None):
+    if not dictionary:
+        dictionary = from_base(standard_dictionary, 12)
+    string = ''
+    for i in range(length):
+        string += dictionary[randbelow(len(dictionary))]
+    return string
+
+
+def to_base(text, base = 16):
     string = ''
     for char in text:
-        string += ('' if ord(char) >= 16 else '0') + hex(ord(char))[2 : ]
+        string += ('' if ord(char) >= base else '0')
+        string += base_n(ord(char), base)
     return string
 
 
-def from_hex(text):
+def from_base(text, base = 16):
     if len(text) % 2 != 0:
-        raise ValueError('length of the string must be odd')
+        raise ValueError('length of the string must be even')
     string = ''
     for i in range(0, len(text), 2):
-        string += chr(int(text[i : i + 2], 16))
+        string += chr(int(text[i:i + 2], base))
     return string
+
+
+def convert_base(num, b1, b2):
+    return base_n((int(num, b1)), b2)
 
 
 def generate_dictionary():
-    dictionary = [char for char in standard_dictionary]
+    dictionary = [char for char in from_base(standard_dictionary, 12)]
     for _ in range(len(dictionary)):
         for i in range(len(dictionary)):
             j = randbelow(len(dictionary))
             t = dictionary[j]
             dictionary[j] = dictionary[i]
             dictionary[i] = t
-    return ''.join(dictionary)
+    return to_base(''.join(dictionary), 12).upper()
 
 
-def transform(dict, lock, text, mode):
+def transform(text, key, dict, mode):
     if mode not in ('e', 'd'):
         raise ValueError(f'\'{mode}\' is not a valid mode')
     elif mode == 'e':
-        sign = 1
+        base_sign = 1
+        iter_key = key
     elif mode == 'd':
-        sign = -1
+        base_sign = -1
+        iter_key = key[ : :-1]
 
     string = [char for char in text]
 
-    lock_len = int(lock[ : 2])
-    read_len = int(lock[2])
-    read_pos = int(lock[read_len])
-    offset = sign*int(lock[read_pos : read_pos + read_len])
+    for pass_num, digit in enumerate(iter_key):
+        sign = base_sign
+        modifier = int(key[ :2], 36)
+        offset = sign*int(key[2: ], 36)
 
-    for i in range(len(text)):
-        if read_pos + read_len > lock_len:
-            offset += sign*int(lock[read_pos : ]
-                               + lock[2 : 2 + (read_pos + read_len) % lock_len])
-            read_pos = 2 + (read_pos + read_len) % lock_len
-        else:
-            offset += sign*int(lock[read_pos : read_pos + read_len])
-            read_pos = read_pos + read_len
+        for i in range(len(text)):
+            if mode == 'e':
+                if pass_num % 2 != 0:
+                    i = len(text) - i - 1
+                string[i] = dict[(dict.index(string[i]) + offset) % len(dict)]
+                multiplier = ord(string[i])
 
-        if offset % 2 != 0:
-            sign *= -1
+            if mode == 'd':
+                if pass_num % 2 == 0:
+                    i = len(text) - i - 1
+                multiplier = ord(string[i])
+                string[i] = dict[(dict.index(string[i]) + offset) % len(dict)]
 
-        string[i] = dict[(dict.index(string[i]) + offset) % len(dict)]
+            offset *= multiplier
+            offset %= (modifier if offset > 0 else -modifier)
+            offset += sign*modifier*int(digit, 36)
+            sign = (-sign if offset % 2 == 0 else sign)
 
     return ''.join(string)
 
 
-def encode(text, dict = standard_dictionary):
-    if len(text) > 50: # Temporary until I figure out a good way to do this
-        raise ValueError('strings longer than 50 characters are not supported')
+def encode(text, dictionary = standard_dictionary):
+    dictionary = from_base(dictionary, 12)
 
     blocks = []
-    while len(text) > 50:
-        blocks.append(text[-50 : ])
-        text = text[ : -64]
+    while len(text) > 12:
+        min_per_block = -(-len(text))//(1 + (len(text) - 1)//12)
+        in_this_block = 12 - randbelow(12 - min_per_block + 1)
+        blocks.append(text[-in_this_block: ])
+        text = text[ :-in_this_block]
     blocks.append(text)
 
-    lock = str(randof(60 - len(text)))
-    while int(lock) % int(lock[0]) == 0:
-        lock = str(randof(60 - len(text)))
-    lock = str(len(lock) + 2) + lock
+    block = ''
+    cipher = ''
+    ciphers = []
+    while len(blocks):
+        block = blocks.pop()
+        key = base_n(randof(4, 36), 36)
+        pos = base_n(randbelow(12 - len(block) + 1), 18)
+        pad = randstr(12 - len(block)) + pos + base_n(len(block), 18)
+        block = pad[ :int(pos, 18)] + block + pad[int(pos, 18): ]
 
-    packaged = to_hex(lock + transform(dict, lock, ''.join(blocks), 'e'))
+        cipher = transform(block, key, dictionary, 'e')
+        cipher = convert_base(to_base(cipher, 12), 12, 36)
+        cipher = ('' if len(cipher) == 20 else '0') + cipher
 
-    scrambler = 17 + randbelow(16**2 - 17)
-    packaged = hex(scrambler*int(packaged, 16))[2 : ]
-    while len(packaged) < 126:
-        packaged = '0' + packaged
-    packaged = hex(scrambler)[2 : ] + packaged
+        ciphers.append(key + cipher)
 
-    return packaged.upper()
+    return ''.join(ciphers).upper()
 
 
-def decode(text, dict = standard_dictionary):
-    text = from_hex(hex(int(text[2 : ], 16)//int(text[ : 2], 16))[2 : ])
+def decode(text, dictionary = standard_dictionary):
+    dictionary = from_base(dictionary, 12)
 
-    lock = text[ : int(text[ : 2])]
-    text = text[int(text[ : 2]) : ]
+    ciphers = []
+    while len(text):
+        ciphers.append(text[-24:-20] + convert_base(text[-20: ], 36, 12))
+        text = text[ :-24]
 
-    return transform(dict, lock, text, 'd')
+    cipher = ''
+    block = ''
+    blocks = []
+    while len(ciphers):
+        cipher = ciphers.pop()
+        key = cipher[ :4]
+        cipher = ('' if len(cipher[4: ]) == 28 else '0') + cipher[4: ]
+        block = from_base(cipher, 12)
+
+        block = transform(block, key, dictionary, 'd')
+        block = block[int(block[-2], 18):int(block[-2], 18) + int(block[-1], 18)]
+
+        blocks.append(block)
+
+    return ''.join(blocks)
 
 
 # For testing
+def check(iters):
+    start_t = timer()
+    dictionary = from_base(standard_dictionary, 12)
+    try:
+        for _ in range(iters):
+            d = standard_dictionary
+            #d = generate_dictionary()
+            n = 1 + randbelow(100)
+            string = ''.join(choice(dictionary) for _ in range(n))
+            enc = encode(string, d)
+            dec = decode(enc, d)
+            if string != dec:
+                print(string)
+    except Exception as error:
+        print(string)
+        raise error
+    end_t = timer()
+    print(f"Checked {iters} strings successfully in {end_t - start_t} s")
+
+
 if __name__ == '__main__':
     f = input("Enter task (e = encode, d = decode, g = generate dictionary): ")
     if f in ('e', 'd'):
@@ -128,15 +177,15 @@ if __name__ == '__main__':
         if u_dict == '':
             dict = standard_dictionary
         else:
-            dict = from_hex(u_dict)
-            for char in standard_dictionary:
-                if char not in dict or len(dict) != 92:
+            dict = u_dict
+            for char in from_base(standard_dictionary, 12):
+                if char not in from_base(dict, 12) or len(dict) != 192:
                     print("\nInvalid dictionary.")
                     exit()
         t = input("Enter text to be encoded/decoded: ")
         print('\n' + (encode(t, dict) if f == 'e' else decode(t, dict)))
     elif f == 'g':
-        print('\n' + to_hex(generate_dictionary()))
+        print('\n' + generate_dictionary())
     else:
         print("\nInvalid input.")
     print('')
