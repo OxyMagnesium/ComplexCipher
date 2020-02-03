@@ -1,7 +1,7 @@
 #Discord bot for running ComplexCipher.
 import discord
 from discord.ext import commands
-import complexciphercore
+import complexcipher2
 import logging
 import time
 import os
@@ -17,12 +17,13 @@ logging.basicConfig(format = '%(levelname)s:%(name)s:(%(asctime)s): %(message)s'
 
 bot = commands.Bot('~')
 token = '' #Manually add token here.
+dicts = {}
 guilds = {}
 channels = {}
 maintenance = False
 bot.remove_command('help')
 
-me = bot.get_channel(591295364498194571)
+my_dm = bot.get_channel(591295364498194571)
 
 if token == '': #Get token if it's not already in the code.
     try:
@@ -43,7 +44,7 @@ if token == '': #Get token if it's not already in the code.
 else:
     logging.info("Token acquired from code.")
 
-with open('config.txt') as file: #Get list of serviced guilds and their corresponding output channels and IDs.
+with open('config.txt') as file: #Load stored items into memory.
     for line in file:
         line = line.strip()
         if line.startswith('[') and line.endswith(']'):
@@ -51,6 +52,10 @@ with open('config.txt') as file: #Get list of serviced guilds and their correspo
             continue
         line = line.split('=', maxsplit = 1)
         try:
+            if section == 'DICTIONARIES':
+                id = int(line[0].strip())
+                dict = line[1].strip()
+                dicts[id] = dict
             if section == 'GUILDS':
                 name = line[0].strip()
                 id = int(line[1].split('"')[1])
@@ -59,9 +64,9 @@ with open('config.txt') as file: #Get list of serviced guilds and their correspo
                 name = line[0].strip()
                 id = int(line[1].split('"')[1])
                 channels[name] = id
-        except IndexError:
+        except (IndexError, ValueError):
             continue
-logging.info("Guilds and channels initialized.")
+logging.info("Guilds, channels, and dictionaries initialized.")
 
 #Initialization end
 ################################################################################
@@ -138,10 +143,18 @@ async def e(ctx):
         msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 1)[1]
         logging.info("Processing encode request from {0}.".format(ctx.message.author))
-        msg = '{0} {1.message.author.mention} asked to encode ` {2} ` in #{1.message.channel}:'.format(msgtime, ctx, content)
-        output = '``` {0} ```'.format(complexciphercore.convert(content, 'encode', '-noprint'))
+        msg = '{0} {1.message.author.mention} asked to encode `{2}` in #{1.message.channel}.'.format(msgtime, ctx, content)
+        try:
+            dict = dicts[ctx.message.author.id]
+        except KeyError:
+            dict = None
+            msg += '\nWARNING: No dictionary is linked to this account. Using standard dictionary.'
+        try:
+            msg += '\n```{0}```'.format(complexcipher2.encode(content, dict))
+        except:
+            await ctx.send('An internal error occurred. You may have used an unsupported character.')
+            return
         await dest_channel.send(msg)
-        await dest_channel.send(output)
         return
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~e <text>')
@@ -153,10 +166,70 @@ async def d(ctx):
         msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 1)[1]
         logging.info("Processing decode request from {0}.".format(ctx.message.author))
-        msg = '{0} {1.message.author.mention} asked to decode ` {2} ` in #{1.message.channel}:'.format(msgtime, ctx, content)
-        output = '``` {0} ```'.format(complexciphercore.convert(content, 'decode', '-noprint'))
+        msg = '{0} {1.message.author.mention} asked to decode `{2}` in #{1.message.channel}.'.format(msgtime, ctx, content)
+        try:
+            dict = dicts[ctx.message.author.id]
+        except KeyError:
+            dict = None
+            msg += '\nWARNING: No dictionary is linked to this account. Using standard dictionary.'
+        try:
+            msg += '\n```{0}```'.format(complexcipher2.decode(content, dict))
+        except:
+            await ctx.send('An internal error occurred. The cipher may be corrupted or you may not have the correct dictionary.')
+            return
         await dest_channel.send(msg)
-        await dest_channel.send(output)
+        return
+    except IndexError:
+        await ctx.send('Invalid syntax. Usage: ~d <text>')
+        return
+
+@bot.command()
+async def dict(ctx):
+    try:
+        msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
+        content = ctx.message.content.split(' ', maxsplit = 2)
+        logging.info("Processing dict change request from {0}.".format(ctx.message.author))
+        write_new_dict = False
+
+        if content[1] == 'generate':
+            new_dict = complexcipher2.generate_dictionary()
+            write_new_dict = True
+            msg = 'A new dictionary has been generated and linked to your account.'
+            msg += '\nYour dictionary is: `{0}`'.format(new_dict)
+
+        if content[1] == 'link':
+            new_dict = content[2]
+            if complexcipher2.check_dictionary(new_dict):
+                write_new_dict = True
+                msg = 'Dictionary was successfully linked to your account.'
+            else:
+                msg = 'Invalid dictionary. Check for copying errors or generate a new one.'
+
+        if write_new_dict:
+            dicts[ctx.message.author.id] = new_dict
+            buffer = ''
+            with open('config.txt', 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if line.startswith('[') and line.endswith(']'):
+                        section = line[1:-1]
+                        if section == 'DICTIONARIES':
+                            write = True
+                            check = True
+                        else:
+                            check = False
+                    if check and line.split('=')[0].strip() == str(ctx.message.author.id):
+                        pass
+                    else:
+                        buffer += line + '\n'
+                    if write:
+                        buffer += '{0} = {1}\n'.format(ctx.message.author.id, new_dict)
+                        write = False
+            with open('config.txt', 'w') as file:
+                file.write(buffer)
+            logging.info("New dict successfully added to file.")
+
+        await ctx.send(msg)
         return
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~d <text>')
@@ -183,6 +256,7 @@ async def suggest(ctx):
         file.write(buffer)
     await ctx.send('Your suggestion has been recorded.')
     logging.info("Suggestion added in {0}.".format(ctx.message.guild))
+    return
 
 @bot.command() #Command to manage suggestions.
 async def suggestions(ctx):
@@ -315,12 +389,17 @@ async def on_message(message):
         await dest_channel.send(msg)
         return
 
+    if 'bruh' in message.content.lower():
+        logging.info("bruh")
+        await message.channel.send(file=discord.File('bruh.mp3'))
+
     await bot.process_commands(message)
 
 @bot.event
 async def on_ready():
     logging.info('Logged in as {0.name} (ID: {0.id})'.format(bot.user))
-    logging.info('Running ComplexCipher {0}.'.format(complexciphercore.VERSION))
+    logging.info('Running ComplexCipher {0}.'.format(complexcipher2.VERSION))
     await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
 
-bot.run(token)
+if __name__ == '__main__':
+    bot.run(token)
