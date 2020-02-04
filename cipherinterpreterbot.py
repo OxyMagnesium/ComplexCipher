@@ -23,7 +23,7 @@ channels = {}
 maintenance = False
 bot.remove_command('help')
 
-my_dm = bot.get_channel(591295364498194571)
+egto_ldg_page_id = 670351255918608412
 
 if token == '': #Get token if it's not already in the code.
     try:
@@ -372,7 +372,8 @@ async def on_message(message):
 
     global dest_channel
     try:
-        if isinstance(channel, discord.abc.PrivateChannel): #Determining message destination.
+        global dest_channel #Determining message destination.
+        if isinstance(channel, discord.abc.PrivateChannel):
             guild = 'DM'
             dest_channel = bot.get_channel(channel.id)
         else:
@@ -389,9 +390,18 @@ async def on_message(message):
         await dest_channel.send(msg)
         return
 
-    if 'bruh' in message.content.lower():
+    if 'bruh' in message.content.lower(): #bruh
         logging.info("bruh")
         await message.channel.send(file=discord.File('bruh.mp3'))
+
+    if channel.id == egto_ldg_page_id:
+        logging.info("Processing message in #landing-page.")
+        if message.content.lower() == 'accept':
+            logging.info('{0} is now a Meme-ber.'.format(message.author))
+            role = discord.utils.get(message.guild.roles, name = 'Meme-ber')
+            await message.author.add_roles(role)
+        await message.delete()
+        return
 
     await bot.process_commands(message)
 
