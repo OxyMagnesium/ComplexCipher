@@ -1,6 +1,4 @@
 # Byte-compiled / optimized / DLL files
-token.txt
-
 __pycache__/
 *.py[cod]
 *$py.class
@@ -104,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+token.txt
+config.txt
+logs_active
+logs_archive
+.vscode
