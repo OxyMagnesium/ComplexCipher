@@ -1,4 +1,5 @@
 #Discord bot for running ComplexCipher.
+
 import discord
 from discord.ext import commands
 import complexcipher2
@@ -22,8 +23,6 @@ guilds = {}
 channels = {}
 maintenance = False
 bot.remove_command('help')
-
-egto_ldg_page_id = 670351255918608412
 
 if token == '': #Get token if it's not already in the code.
     try:
@@ -68,6 +67,9 @@ with open('config.txt') as file: #Load stored items into memory.
             continue
 logging.info("Guilds, channels, and dictionaries initialized.")
 
+logged = [int(guild) for guild in os.listdir('logs_active')]
+logging.info("Logging messages in {0} guilds".format(len(logged)))
+
 #Initialization end
 ################################################################################
 #Commands start
@@ -89,7 +91,7 @@ async def help(ctx):
     await ctx.send(buffer)
     logging.info("Displayed help for {0}.".format(ctx.message.author))
 
-@bot.command() #Command to get the IP address of the server
+@bot.command() #Command to get the IP address of the server.
 async def ip(ctx):
     ip = requests.get('https://api.ipify.org').text
     await ctx.send('Current IP address is {0}.'.format(ip))
@@ -97,7 +99,10 @@ async def ip(ctx):
 
 @bot.command() #Command to change operating channel for cipher functions.
 async def setchannel(ctx):
-    content = ctx.message.content.split(' ', maxsplit = 1)[1]
+    try:
+        content = ctx.message.content.split(' ', maxsplit = 1)[1]
+    except IndexError:
+        content = 'current'
     buffer = ''
     writeG = False
     writeC = False
@@ -184,9 +189,8 @@ async def d(ctx):
         return
 
 @bot.command()
-async def dict(ctx):
+async def key(ctx):
     try:
-        msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 2)
         logging.info("Processing dict change request from {0}.".format(ctx.message.author))
         write_new_dict = False
@@ -237,7 +241,6 @@ async def dict(ctx):
 
 @bot.command() #Command to accept suggestions.
 async def suggest(ctx):
-    msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
     content = ctx.message.content.split(' ', maxsplit = 1)[1]
     buffer = ''
     write = False
@@ -261,7 +264,6 @@ async def suggest(ctx):
 @bot.command() #Command to manage suggestions.
 async def suggestions(ctx):
     try:
-        msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
         content = ctx.message.content.split(' ', maxsplit = 2)[1]
 
         if content == 'view': #Subcommand to view existing suggestions for the guild.
@@ -339,33 +341,91 @@ async def suggestions(ctx):
         await ctx.send('Invalid syntax. Usage: ~suggestions <function> <*parameters>')
         return
 
+@bot.command() #Command to manage logging.
+async def logs(ctx):
+    try:
+        content = ctx.message.content.split(' ', maxsplit = 2)[1]
+
+        if content == 'enable': #Subcommand to enable logging for the guild.
+            if str(ctx.message.guild.id) in os.listdir('logs_active'):
+                await ctx.send('Logging is already enabled for this guild')
+                return
+            if str(ctx.message.guild.id) in os.listdir('logs_archive'):
+                os.rename('logs_archive/{0}'.format(ctx.message.guild.id), 'logs_active/{0}'.format(ctx.message.guild.id))
+            #with open('logs_active/{0}'.format(ctx.message.guild.id), 'a') as file:
+            #    file.write('Logging enabled in {0} at {1}\n'.format(ctx.message.guild.name, time.strftime('%Y-%m-%d %H:%M:%S')))
+            logged.append(ctx.message.guild.id)
+            await ctx.send('Logging successfully enabled')
+            logging.info('Logging enabled for {0}'.format(ctx.message.guild.name))
+            return
+
+        if content == 'disable': #Subcommand to disable logging for the guild.
+            if str(ctx.message.guild.id) not in os.listdir('logs_active'):
+                await ctx.send('Logging is not enabled for this guild')
+                return
+            #with open('logs_active/{0}'.format(ctx.message.guild.id), 'a') as file:
+            #    file.write('Logging disabled in {0} at {1}\n'.format(ctx.message.guild.name, time.strftime('%Y-%m-%d %H:%M:%S')))
+            os.rename('logs_active/{0}'.format(ctx.message.guild.id), 'logs_archive/{0}'.format(ctx.message.guild.id))
+            logged.remove(ctx.message.guild.id)
+            await ctx.send('Logging successfully disabled for this guild')
+            logging.info('Logging disabled for {0}'.format(ctx.message.guild.name))
+            return
+
+        if content == 'export': #Subcommand to dump the guild log as a text file
+            if str(ctx.message.guild.id) in os.listdir('logs_active'):
+                await ctx.send(file=discord.File('logs_active/{0}'.format(ctx.message.guild.id)))
+                logging.info('Logs dumped for {0}'.format(ctx.message.guild.name))
+                return
+            elif str(ctx.message.guild.id) in os.listdir('logs_archive'):
+                await ctx.send(file=discord.File('logs_archive/{0}'.format(ctx.message.guild.id), '{0}.csv'.format(time.time())))
+                logging.info('Logs dumped for {0}'.format(ctx.message.guild.name))
+                return
+            else:
+                await ctx.send('No log exists for this guild')
+                return
+            
+    except IndexError:
+        await ctx.send('Invalid syntax. Usage: ~logs <function>')
+        return
+
 #Commands end
 ################################################################################
 
 @bot.event
 async def on_message(message):
+    if message.guild.id in logged: #Log message if needed
+        with open('logs_active/{0}'.format(message.guild.id), 'ab') as file:
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+            channel = '#' + message.channel.name
+            author = message.author.name
+            content = message.clean_content.replace(',', '').replace('\n', '  ')
+            if not content and len(message.attachments):
+                content = '{0} attachment(s)'.format(len(message.attachments))
+            entry = ','.join((timestamp, channel, author, content)) + '\n'
+            file.write(entry.encode(errors='namereplace'))
+
     if message.author == bot.user:
         return
 
     channel = message.channel
-    msgtime = time.strftime('[%H:%M:%S UTC]', time.gmtime())
 
-    try:
-        global maintenance #Maintenance mode toggle checking.
-        if message.content.split(' ', maxsplit = 1)[1] == 'enable':
-            maintenance = True
-            logging.warning('Maintenance mode is enabled.')
-            await bot.change_presence(activity = discord.Game(name = 'Maintenance mode'))
-            await channel.send('Maintenance mode is enabled.')
-            return
-        if message.content.split(' ', maxsplit = 1)[1] == 'disable':
-            maintenance = False
-            logging.warning('Maintenance mode is disabled.')
-            await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
-            await channel.send('Maintenance mode is disabled.')
-            return
-    except IndexError:
-        pass
+    if message.content.split(' ')[0] == '~maintenance':
+        try:
+            global maintenance #Maintenance mode toggle checking.
+            if message.content.split(' ', maxsplit = 1)[1] == 'enable':
+                maintenance = True
+                logging.warning('Maintenance mode is enabled.')
+                await bot.change_presence(activity = discord.Game(name = 'Maintenance mode'))
+                await channel.send('Maintenance mode is enabled.')
+                return
+            if message.content.split(' ', maxsplit = 1)[1] == 'disable':
+                maintenance = False
+                logging.warning('Maintenance mode is disabled.')
+                await bot.change_presence(activity = discord.Game(name = 'Making ciphers circa 2018'))
+                await channel.send('Maintenance mode is disabled.')
+                return
+        except IndexError:
+            pass
 
     if maintenance == True:
         return
@@ -387,21 +447,16 @@ async def on_message(message):
         logging.info("Processing greeting.")
         dest_channel = channel
         msg = "{0} :wave:".format(random.choice(['Hi', 'Hello', 'Hey']))
-        await dest_channel.send(msg)
+        await message.channel.send(msg)
         return
 
     if 'bruh' in message.content.lower(): #bruh
         logging.info("bruh")
         await message.channel.send(file=discord.File('bruh.mp3'))
 
-    if channel.id == egto_ldg_page_id:
-        logging.info("Processing message in #landing-page.")
-        if message.content.lower() == 'accept':
-            logging.info('{0} is now a Meme-ber.'.format(message.author))
-            role = discord.utils.get(message.guild.roles, name = 'Meme-ber')
-            await message.author.add_roles(role)
-        await message.delete()
-        return
+    if 'ohhh' in message.content.lower(): #ohhh
+        logging.info("ohhh")
+        await message.channel.send(file=discord.File('ohhh.mp3'))
 
     await bot.process_commands(message)
 
