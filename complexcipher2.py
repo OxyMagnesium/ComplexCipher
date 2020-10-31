@@ -23,7 +23,7 @@
 #    message, with the possibilities growing exponentially with message length
 # -> is completely resistant to manipulation by editing the cipher
 
-VERSION = '2.1.1'
+VERSION = '2.2.0'
 
 import logging
 from secrets import randbelow, choice
@@ -31,10 +31,10 @@ from numpy import base_repr as base_n
 from timeit import default_timer as timer
 
 # A standard dictionary with characters arranged according to Unicode values.
-standard_dictionary = (  '0A28292A2B303132333435363738393A3B40414243444546'
-                       + '4748494A4B505152535455565758595A5B60616263646566'
-                       + '6768696A6B707172737475767778797A7B80818283848586'
-                       + '8788898A8B909192939495969798999A9BA0A1A2A3A4A5A6')
+standard_dictionary = ('0A28292A2B303132333435363738393A3B40414243444546'
+                       '4748494A4B505152535455565758595A5B60616263646566'
+                       '6768696A6B707172737475767778797A7B80818283848586'
+                       '8788898A8B909192939495969798999A9BA0A1A2A3A4A5A6')
 
 # Returns a random number of the given number of digits in the given base.
 def randof(digits, base = 10):
@@ -45,7 +45,7 @@ def randstr(length, dictionary = None):
     if not dictionary:
         dictionary = from_base(standard_dictionary, 12)
     string = ''
-    for i in range(length):
+    for _ in range(length):
         string += dictionary[randbelow(len(dictionary))]
     return string
 
@@ -105,11 +105,12 @@ def transform(text, key, dict, mode):
 
     # For each digit in the key:
     # The first two digits of the key become a limiting value for the offset.
-    # The last two digits of the key become an additive offset.
+    # The last two digits of the key are used to get an initial additive offset.
     for pass_num, digit in enumerate(iter_key):
         sign = base_sign
-        modifier = int(key[ :2], 32)
-        offset = sign*int(key[2: ], 32)
+        modifier = int(digit, 32)
+        limiter = int(key[ :2], 32)
+        offset = sign*modifier*int(key[2: ], 32)
 
         # Every character in the string is iterated over
         for i in range(len(text)):
@@ -134,11 +135,12 @@ def transform(text, key, dict, mode):
                 string[i] = dict[(dict.index(string[i]) + offset) % len(dict)]
 
             # Using the multiplier and modifier, perform some mutations on the
-            # offset to percievably randomize it for the next character.
+            # offset to perceivably randomize it for the next character.
             offset *= multiplier
-            offset %= (modifier if offset > 0 else -modifier)
-            offset += sign*modifier*int(digit, 32)
+            offset %= (limiter if offset > 0 else -limiter)
+            offset += sign*modifier*int(key[2: ], 32)
             sign = (-sign if offset % 2 == 0 else sign)
+            modifier = multiplier - modifier
 
     return ''.join(string)
 
@@ -152,11 +154,11 @@ def encode(text, dictionary = None):
     text = text.strip()
 
     blocks = []
-    while len(text) > 12:
-        min_per_block = len(text)//(1 + (len(text) - 1)//12)
-        in_this_block = 12 - randbelow(12 - min_per_block + 1)
-        blocks.append(text[-in_this_block: ])
-        text = text[ :-in_this_block]
+    #while len(text) > 12:
+    #    min_per_block = len(text)//(1 + (len(text) - 1)//12)
+    #    in_this_block = 12 - randbelow(12 - min_per_block + 1)
+    #    blocks.append(text[-in_this_block: ])
+    #    text = text[ :-in_this_block]
     blocks.append(text)
 
     block = ''
@@ -164,20 +166,28 @@ def encode(text, dictionary = None):
     ciphers = []
     while len(blocks):
         block = blocks.pop()
+        cipher_len = len(block) + (16 - (len(block) % 16))
         key = base_n(randof(4, 32), 32)
-        pos = base_n(randbelow(12 - len(block) + 1), 16)
-        pad = randstr(12 - len(block)) + pos + base_n(len(block), 16)
-        block = pad[ :int(pos, 16)] + block + pad[int(pos, 16): ]
+        l_margin = base_n(randbelow(cipher_len - len(block) + 1), 32)
+        r_margin = base_n(cipher_len - (int(l_margin, 32) + len(block)) + 2, 32)
+        pad = randstr(cipher_len - len(block)) + l_margin + r_margin
+        block = pad[ :int(l_margin, 32)] + block + pad[-int(r_margin, 32): ]
+
+        #print(f'pre transform: {block}')
 
         try:
             cipher = transform(block, key, dictionary, 'e')
         except ValueError:
             return None
 
+        #print(f'post transform: {cipher}')
+
         cipher = convert_base(to_base(cipher, 12), 12, 32)
-        cipher = ('' if len(cipher) == 21 else '0') + cipher
+        #cipher = ('' if len(cipher) % 2 == 1 else '0') + cipher
 
         ciphers.append(key + cipher)
+
+        #print(f'post encode: {ciphers[0]}')
 
     return ''.join(ciphers).upper()
 
@@ -191,9 +201,10 @@ def decode(text, dictionary = None):
     text = text.strip()
 
     ciphers = []
-    while len(text):
-        ciphers.append(text[-25:-21] + convert_base(text[-21: ], 32, 12))
-        text = text[ :-25]
+    #while len(text):
+    #    ciphers.append(text[-25:-21] + convert_base(text[-21: ], 32, 12))
+    #    text = text[ :-25]
+    ciphers.append(text[ :4] + convert_base(text[4: ], 32, 12))
 
     cipher = ''
     block = ''
@@ -201,16 +212,25 @@ def decode(text, dictionary = None):
     while len(ciphers):
         cipher = ciphers.pop()
         key = cipher[ :4]
-        cipher = ('' if len(cipher[4: ]) == 28 else '0') + cipher[4: ]
+        cipher = ('' if len(cipher[4: ]) % 2 == 0 else '0') + cipher[4: ]
         block = from_base(cipher, 12)
+
+        #print(f'post decode: {block}')
 
         try:
             block = transform(block, key, dictionary, 'd')
         except ValueError:
             return None
 
-        pos = int(block[-2], 16)
-        block = block[pos:pos+ int(block[-1], 16)]
+        #print(f'post transform: {block}')
+
+        try:
+            l_margin = int(block[-2], 32)
+            r_margin = int(block[-1], 32)
+            block = block[l_margin:-r_margin]
+        except ValueError:
+            print(block)
+            raise
 
         blocks.append(block)
 
@@ -233,7 +253,9 @@ def check(iters):
                 print(string)
                 print("INCORRECT RESULT END")
     except Exception as error:
+        print("INCORRECT RESULT START")
         print(string)
+        print("INCORRECT RESULT END")
         raise error
     end_t = timer()
     print(f"Checked {iters} strings successfully in {end_t - start_t} s")
