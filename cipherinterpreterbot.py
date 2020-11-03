@@ -1,4 +1,4 @@
-#Discord bot for running ComplexCipher.
+#Discord bot for running ComplexCipher (and other random stuff).
 
 import discord
 from discord.ext import commands
@@ -6,8 +6,9 @@ import complexcipher2
 import logging
 import time
 import os
+import io
 import random
-import requests
+import pickle
 
 logging.basicConfig(format = '%(levelname)s:%(name)s:(%(asctime)s): %(message)s',
                     datefmt = '%d-%b-%y %H:%M:%S',
@@ -72,6 +73,47 @@ logging.info("Logging messages in {0} guilds".format(len(logged)))
 
 #Initialization end
 ################################################################################
+#Helper functions start
+
+def decode_log(log):
+    entries = []
+    cache = {}
+
+    for entry in log:
+        items = []
+
+        if entry['version'] == 1:
+            if entry['channel_id'] not in cache:
+                cache[entry['channel_id']] = bot.get_channel(entry['channel_id'])
+
+            if entry['author_id'] not in cache:
+                cache[entry['author_id']] = bot.get_user(entry['author_id'])
+
+            if cache[entry['channel_id']] is None:
+                entry_channel_name = '#' + entry['channel_name'] + 'as seen'
+            else:
+                entry_channel_name = '#' + cache[entry['channel_id']].name
+
+            if cache[entry['author_id']] is None:
+                entry_author_name = entry['author_name'] + 'as seen'
+            else:
+                entry_author_name = cache[entry['author_id']].name
+
+            items.append(str(entry['timestamp']))
+            items.append(str(entry['message_id']))
+            items.append(entry_channel_name)
+            items.append(entry_author_name)
+            items.append(entry['content'])
+
+        else:
+            raise NotImplementedError('Invalid entry version {0}'.format(entry['version']))
+
+        entries.append(items)
+
+    return entries
+
+#Helper functions end
+################################################################################
 #Commands start
 
 @bot.command() #Command to display help.
@@ -90,12 +132,6 @@ async def help(ctx):
     ```'''
     await ctx.send(buffer)
     logging.info("Displayed help for {0}.".format(ctx.message.author))
-
-@bot.command() #Command to get the IP address of the server.
-async def ip(ctx):
-    ip = requests.get('https://api.ipify.org').text
-    await ctx.send('Current IP address is {0}.'.format(ip))
-    logging.info("{0} requested server IP.".format(ctx.message.author))
 
 @bot.command() #Command to change operating channel for cipher functions.
 async def setchannel(ctx):
@@ -345,15 +381,18 @@ async def suggestions(ctx):
 async def logs(ctx):
     try:
         content = ctx.message.content.split(' ', maxsplit = 2)[1]
+        active_loc = 'logs_active/{0}'.format(ctx.message.guild.id)
+        archive_loc = 'logs_archive/{0}'.format(ctx.message.guild.id)
 
         if content == 'enable': #Subcommand to enable logging for the guild.
             if str(ctx.message.guild.id) in os.listdir('logs_active'):
                 await ctx.send('Logging is already enabled for this guild')
                 return
-            if str(ctx.message.guild.id) in os.listdir('logs_archive'):
-                os.rename('logs_archive/{0}'.format(ctx.message.guild.id), 'logs_active/{0}'.format(ctx.message.guild.id))
-            #with open('logs_active/{0}'.format(ctx.message.guild.id), 'a') as file:
-            #    file.write('Logging enabled in {0} at {1}\n'.format(ctx.message.guild.name, time.strftime('%Y-%m-%d %H:%M:%S')))
+            elif str(ctx.message.guild.id) in os.listdir('logs_archive'):
+                os.rename(archive_loc, active_loc)
+            else:
+                with open(active_loc, 'wb') as file:
+                    pickle.dump([], file)
             logged.append(ctx.message.guild.id)
             await ctx.send('Logging successfully enabled')
             logging.info('Logging enabled for {0}'.format(ctx.message.guild.name))
@@ -363,9 +402,7 @@ async def logs(ctx):
             if str(ctx.message.guild.id) not in os.listdir('logs_active'):
                 await ctx.send('Logging is not enabled for this guild')
                 return
-            #with open('logs_active/{0}'.format(ctx.message.guild.id), 'a') as file:
-            #    file.write('Logging disabled in {0} at {1}\n'.format(ctx.message.guild.name, time.strftime('%Y-%m-%d %H:%M:%S')))
-            os.rename('logs_active/{0}'.format(ctx.message.guild.id), 'logs_archive/{0}'.format(ctx.message.guild.id))
+            os.rename(active_loc, archive_loc)
             logged.remove(ctx.message.guild.id)
             await ctx.send('Logging successfully disabled for this guild')
             logging.info('Logging disabled for {0}'.format(ctx.message.guild.name))
@@ -373,16 +410,19 @@ async def logs(ctx):
 
         if content == 'export': #Subcommand to dump the guild log as a text file
             if str(ctx.message.guild.id) in os.listdir('logs_active'):
-                await ctx.send(file=discord.File('logs_active/{0}'.format(ctx.message.guild.id)))
-                logging.info('Logs dumped for {0}'.format(ctx.message.guild.name))
-                return
+                tgt_file = active_loc
             elif str(ctx.message.guild.id) in os.listdir('logs_archive'):
-                await ctx.send(file=discord.File('logs_archive/{0}'.format(ctx.message.guild.id), '{0}.csv'.format(time.time())))
-                logging.info('Logs dumped for {0}'.format(ctx.message.guild.name))
-                return
+                tgt_file = archive_loc
             else:
                 await ctx.send('No log exists for this guild')
                 return
+            with open(tgt_file, 'rb') as file:
+                log = pickle.load(file)
+            out = '\n'.join(','.join(item.replace(',', '').replace('\n', '  ')
+                            for item in entry) for entry in decode_log(log))
+            await ctx.send(file=discord.File(io.StringIO(out), '{0}.csv'.format(time.time())))
+            logging.info('Logs dumped for {0}'.format(ctx.message.guild.name))
+            return
             
     except IndexError:
         await ctx.send('Invalid syntax. Usage: ~logs <function>')
@@ -394,15 +434,23 @@ async def logs(ctx):
 @bot.event
 async def on_message(message):
     if message.guild.id in logged: #Log message if needed
-        with open('logs_active/{0}'.format(message.guild.id), 'ab') as file:
-            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-            channel = '#' + message.channel.name
-            author = message.author.name
-            content = message.clean_content.replace(',', '').replace('\n', '  ')
-            if not content and len(message.attachments):
-                content = '{0} attachment(s)'.format(len(message.attachments))
-            entry = ','.join((timestamp, channel, author, content)) + '\n'
-            file.write(entry.encode(errors='namereplace'))
+        content = message.clean_content
+        for attachment in message.attachments:
+            content += '\nATTACHMENT: {0.filename} ({0.url})'.format(attachment)
+        with open('logs_active/{0}'.format(message.guild.id), 'rb') as file:
+            log = pickle.load(file)
+        log.append({
+            'version': 1,
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'message_id': message.id,
+            'channel_id': message.channel.id,
+            'channel_name': message.channel.name,
+            'author_id': message.author.id,
+            'author_name': message.author.display_name,
+            'content': content,
+        })
+        with open('logs_active/{0}'.format(message.guild.id), 'wb') as file:
+            pickle.dump(log, file)
 
     if message.author == bot.user:
         return
