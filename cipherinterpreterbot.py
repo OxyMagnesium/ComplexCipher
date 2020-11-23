@@ -433,24 +433,27 @@ async def logs(ctx):
 
 @bot.event
 async def on_message(message):
-    if message.guild.id in logged: #Log message if needed
-        content = message.clean_content
-        for attachment in message.attachments:
-            content += '\nATTACHMENT: {0.filename} ({0.url})'.format(attachment)
-        with open('logs_active/{0}'.format(message.guild.id), 'rb') as file:
-            log = pickle.load(file)
-        log.append({
-            'version': 1,
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'message_id': message.id,
-            'channel_id': message.channel.id,
-            'channel_name': message.channel.name,
-            'author_id': message.author.id,
-            'author_name': message.author.display_name,
-            'content': content,
-        })
-        with open('logs_active/{0}'.format(message.guild.id), 'wb') as file:
-            pickle.dump(log, file)
+    try:
+        if message.guild.id in logged: #Log message if needed
+            content = message.clean_content
+            for attachment in message.attachments:
+                content += '\nATTACHMENT: {0.filename} ({0.url})'.format(attachment)
+            with open('logs_active/{0}'.format(message.guild.id), 'rb') as file:
+                log = pickle.load(file)
+            log.append({
+                'version': 1,
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'message_id': message.id,
+                'channel_id': message.channel.id,
+                'channel_name': message.channel.name,
+                'author_id': message.author.id,
+                'author_name': message.author.display_name,
+                'content': content,
+            })
+            with open('logs_active/{0}'.format(message.guild.id), 'wb') as file:
+                pickle.dump(log, file)
+    except:
+        logging.warning('Attempt to log message failed in {0}'.format(message.guild.id))
 
     if message.author == bot.user:
         return
@@ -491,19 +494,27 @@ async def on_message(message):
         guild = message.guild.name
         dest_channel = bot.get_channel(channel.id)
 
-    if message.content.lower() == 'hi' or message.content.lower() == 'hello' or message.content.lower() == 'hey': #:wave:
-        logging.info("Processing greeting.")
-        dest_channel = channel
-        msg = "{0} :wave:".format(random.choice(['Hi', 'Hello', 'Hey']))
+    greetings = ['hello', 'hey', 'hi']
+    if any(greeting in message.content.lower().split() for greeting in greetings):
+        msg = "{0} :wave:".format(random.choice(greetings).capitalize())
         await message.channel.send(msg)
         return
 
+    if message.content.lower() in ('bruh', 'ohhh'):
+        # Thanks to NQN for the webhooks idea
+        webhooks = await message.channel.webhooks()
+        webhook = discord.utils.get(webhooks, name = "Imposter CIB")
+        if webhook is None:
+            webhook = await message.channel.create_webhook(name = "Imposter CIB")
+        await webhook.send(file = discord.File('{0}.mp3'.format(message.content.lower())),
+                           username = message.author.display_name, avatar_url = message.author.avatar_url)
+        await message.delete()
+        return
+
     if 'bruh' in message.content.lower(): #bruh
-        logging.info("bruh")
         await message.channel.send(file=discord.File('bruh.mp3'))
 
     if 'ohhh' in message.content.lower(): #ohhh
-        logging.info("ohhh")
         await message.channel.send(file=discord.File('ohhh.mp3'))
 
     await bot.process_commands(message)
