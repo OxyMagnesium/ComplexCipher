@@ -22,6 +22,7 @@ token = '' #Manually add token here.
 dicts = {}
 guilds = {}
 channels = {}
+ignored_users = []
 maintenance = False
 bot.remove_command('help')
 
@@ -64,6 +65,8 @@ with open('config.txt') as file: #Load stored items into memory.
                 name = line[0].strip()
                 id = int(line[1].split('"')[1])
                 channels[name] = id
+            if section == 'IGNORED':
+                ignored_users.append(int(line[0].strip()))
         except (IndexError, ValueError):
             continue
 logging.info("Guilds, channels, and dictionaries initialized.")
@@ -428,6 +431,46 @@ async def logs(ctx):
         await ctx.send('Invalid syntax. Usage: ~logs <function>')
         return
 
+@bot.command() #Command to ignore users.
+async def ignore(ctx):
+    if ctx.author.id not in ignored_users:
+        ignored_users.append(ctx.author.id)
+        with open('config.txt', 'r') as file:
+            buffer = ''
+            for line in file:
+                write_user = False
+                line = line.strip()
+                if line.startswith('[') and line.endswith(']'):
+                    section = line[1:-1]
+                    if section == 'IGNORED':
+                        write_user = True
+                buffer += line + '\n'
+                if write_user:
+                    buffer += '{0}\n'.format(ctx.author.id)
+        with open('config.txt', 'w') as file:
+            file.write(buffer)
+        logging.info('Ignoring {0}'.format(ctx.author.id))
+        await ctx.send('I will ignore you from now on unless you use a command.')
+    else:
+        ignored_users.remove(ctx.author.id)
+        with open('config.txt', 'r') as file:
+            buffer = ''
+            for line in file:
+                line = line.strip()
+                if line.startswith('[') and line.endswith(']'):
+                    section = line[1:-1]
+                if section == 'IGNORED':
+                    try:
+                        if int(line) == ctx.author.id:
+                            continue
+                    except ValueError:
+                        pass
+                buffer += line + '\n'
+        with open('config.txt', 'w') as file:
+            file.write(buffer)
+        logging.info('Not ignoring {0}'.format(ctx.author.id))
+        await ctx.send('I will not ignore you anymore :D')            
+
 #Commands end
 ################################################################################
 
@@ -494,28 +537,33 @@ async def on_message(message):
         guild = message.guild.name
         dest_channel = bot.get_channel(channel.id)
 
-    greetings = ['hello', 'hey', 'hi']
-    if any(greeting in message.content.lower().split() for greeting in greetings):
-        msg = "{0} :wave:".format(random.choice(greetings).capitalize())
-        await message.channel.send(msg)
-        return
+    if message.author.id not in ignored_users:
+        greetings = ['hello', 'hey', 'hi']
+        msg_words = message.content.lower().split()
+        if any(greeting in msg_words for greeting in greetings) and len(msg_words) <= 5:
+            msg = "{0} :wave:".format(random.choice(greetings).capitalize())
+            await message.channel.send(msg)
+            return
 
-    if message.content.lower() in ('bruh', 'ohhh'):
-        # Thanks to NQN for the webhooks idea
-        webhooks = await message.channel.webhooks()
-        webhook = discord.utils.get(webhooks, name = "Imposter CIB")
-        if webhook is None:
-            webhook = await message.channel.create_webhook(name = "Imposter CIB")
-        await webhook.send(file = discord.File('{0}.mp3'.format(message.content.lower())),
-                           username = message.author.display_name, avatar_url = message.author.avatar_url)
-        await message.delete()
-        return
+        if message.content.lower() in ('bruh', 'ohhh'):
+            #Thanks to NQN for the webhooks idea
+            webhooks = await message.channel.webhooks()
+            webhook = discord.utils.get(webhooks, name = 'Imposter CIB')
+            if webhook is None:
+                webhook = await message.channel.create_webhook(name = 'Imposter CIB')
+            await webhook.send(
+                file = discord.File('{0}.mp3'.format(message.content.lower())),
+                username = message.author.display_name, 
+                avatar_url = message.author.avatar_url,
+            )
+            await message.delete()
+            return
 
-    if 'bruh' in message.content.lower(): #bruh
-        await message.channel.send(file=discord.File('bruh.mp3'))
+        if 'bruh' in message.content.lower(): #bruh
+            await message.channel.send(file=discord.File('bruh.mp3'))
 
-    if 'ohhh' in message.content.lower(): #ohhh
-        await message.channel.send(file=discord.File('ohhh.mp3'))
+        if 'ohhh' in message.content.lower(): #ohhh
+            await message.channel.send(file=discord.File('ohhh.mp3'))
 
     await bot.process_commands(message)
 
