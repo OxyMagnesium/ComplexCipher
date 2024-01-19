@@ -9,6 +9,8 @@ import os
 import io
 import random
 import pickle
+import csv
+import asyncio
 
 logging.basicConfig(format = '%(levelname)s:%(name)s:(%(asctime)s): %(message)s',
                     datefmt = '%d-%b-%y %H:%M:%S',
@@ -17,7 +19,7 @@ logging.basicConfig(format = '%(levelname)s:%(name)s:(%(asctime)s): %(message)s'
 ################################################################################
 #Initialization start
 
-bot = commands.Bot('~')
+bot = commands.Bot('~', intents = discord.Intents.all())
 token = '' #Manually add token here.
 dicts = {}
 guilds = {}
@@ -492,7 +494,72 @@ async def ignore(ctx):
         with open('config.txt', 'w') as file:
             file.write(buffer)
         logging.info('Not ignoring {0}'.format(ctx.author.id))
-        await ctx.send('I will not ignore you anymore :D')            
+        await ctx.send('I will not ignore you anymore :D')
+
+@bot.command()
+async def backup(ctx):
+    # Check if the user has the necessary permissions
+    if ctx.message.author.guild_permissions.read_messages:
+        # Get all channels in the current server
+        channels = ctx.guild.channels
+
+        # Loop through each channel
+        for channel in channels:
+            # Check if the channel is a text channel
+            if isinstance(channel, discord.TextChannel):
+                # Send a message to the channel indicating the export
+                export_message = await ctx.message.channel.send(f'Exporting messages from #{channel.name}...')
+
+                # Create the directory for the backups
+                backup_dir = f'backups/{ctx.guild.name}/{time.strftime("%Y-%m-%d")}'
+                os.makedirs(backup_dir, exist_ok=True)
+
+                # Append the coroutine to the list without awaiting it
+                messages = channel.history(limit=None)
+
+                # Create a separate CSV file for each channel
+                filename = f'{backup_dir}/message_backup_{channel.name}.csv'
+
+                # Write messages to the CSV file
+                with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                    fieldnames = ['Channel', 'Author_Username', 'Author_Nickname', 'Content', 'Timestamp', 'Attachment_Name', 'Attachment_URL']
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    
+                    # Write the header
+                    writer.writeheader()
+                    
+                    # Write each message to the CSV file
+                    count = 0
+                    start = time.perf_counter()
+                    async for message in messages:
+                        # Extract attachment information if available
+                        attachment_name = None
+                        attachment_url = None
+                        if message.attachments:
+                            attachment_name = message.attachments[0].filename
+                            attachment_url = message.attachments[0].url
+
+                        writer.writerow({
+                            'Channel': message.channel.name,
+                            'Author_Username': message.author.name,
+                            'Author_Nickname': message.author.display_name,
+                            'Content': message.content,
+                            'Timestamp': message.created_at,
+                            'Attachment_Name': attachment_name,
+                            'Attachment_URL': attachment_url
+                        })
+                        count += 1
+                    end = time.perf_counter()
+
+                # Update the export message
+                await export_message.edit(content=f'Export of #{channel.name} completed ({count} messages in {end - start:.3f} s)')
+
+        await ctx.send('Message backup completed!')
+    else:
+        await ctx.send('You do not have the necessary permissions to read messages.')
+
+
+
 
 #Commands end
 ################################################################################

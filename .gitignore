@@ -108,3 +108,4 @@ config.txt
 logs_active
 logs_archive
 .vscode
+backups
