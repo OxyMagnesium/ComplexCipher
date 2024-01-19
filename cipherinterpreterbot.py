@@ -78,6 +78,29 @@ logging.info("Logging messages in {0} guilds".format(len(logged)))
 ################################################################################
 #Helper functions start
 
+def log_message(message):
+    try:
+        if message.guild.id in logged:
+            content = message.clean_content
+            for attachment in message.attachments:
+                content += '\nATTACHMENT: {0.filename} ({0.url})'.format(attachment)
+            with open('logs_active/{0}'.format(message.guild.id), 'rb') as file:
+                log = pickle.load(file)
+            log.append({
+                'version': 1,
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'message_id': message.id,
+                'channel_id': message.channel.id,
+                'channel_name': message.channel.name,
+                'author_id': message.author.id,
+                'author_name': message.author.display_name,
+                'content': content,
+            })
+            with open('logs_active/{0}'.format(message.guild.id), 'wb') as file:
+                pickle.dump(log, file)
+    except:
+        logging.warning('Attempt to log message failed in {0}'.format(message.guild.id))
+
 def decode_log(log):
     entries = []
     cache = {}
@@ -93,7 +116,7 @@ def decode_log(log):
                 cache[entry['author_id']] = bot.get_user(entry['author_id'])
 
             if cache[entry['channel_id']] is None:
-                entry_channel_name = '#' + entry['channel_name'] + 'as seen'
+                entry_channel_name = '#' + entry['channel_name'] + ' as seen'
             else:
                 entry_channel_name = '#' + cache[entry['channel_id']].name
 
@@ -476,27 +499,8 @@ async def ignore(ctx):
 
 @bot.event
 async def on_message(message):
-    try:
-        if message.guild.id in logged: #Log message if needed
-            content = message.clean_content
-            for attachment in message.attachments:
-                content += '\nATTACHMENT: {0.filename} ({0.url})'.format(attachment)
-            with open('logs_active/{0}'.format(message.guild.id), 'rb') as file:
-                log = pickle.load(file)
-            log.append({
-                'version': 1,
-                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-                'message_id': message.id,
-                'channel_id': message.channel.id,
-                'channel_name': message.channel.name,
-                'author_id': message.author.id,
-                'author_name': message.author.display_name,
-                'content': content,
-            })
-            with open('logs_active/{0}'.format(message.guild.id), 'wb') as file:
-                pickle.dump(log, file)
-    except:
-        logging.warning('Attempt to log message failed in {0}'.format(message.guild.id))
+    if message.guild is not None:
+        log_message(message)
 
     if message.author == bot.user:
         return
@@ -545,7 +549,7 @@ async def on_message(message):
             await message.channel.send(msg)
             return
 
-        if message.content.lower() in ('bruh', 'ohhh'):
+        if message.content.lower() in ('bruh', 'ohhh', 'fuck'):
             #Thanks to NQN for the webhooks idea
             webhooks = await message.channel.webhooks()
             webhook = discord.utils.get(webhooks, name = 'Imposter CIB')
@@ -559,13 +563,27 @@ async def on_message(message):
             await message.delete()
             return
 
-        if 'bruh' in message.content.lower(): #bruh
+        if 'bruh' in message.content.lower().split(): #bruh
             await message.channel.send(file=discord.File('bruh.mp3'))
 
-        if 'ohhh' in message.content.lower(): #ohhh
+        if 'ohhh' in message.content.lower().split(): #ohhh
             await message.channel.send(file=discord.File('ohhh.mp3'))
 
+        if 'fuck' in message.content.lower().split(): #fuck
+            await message.channel.send(file=discord.File('fuck.mp3'))
+
+    logging.debug(f'Processing {message} ("{message.content}")')
+
     await bot.process_commands(message)
+
+@bot.event
+async def on_command_error(ctx, error):
+    logging.error('Error in {0}: {1}"'.format(ctx.message.content, error))
+    await ctx.send('Error processing command. Use `~help` to view help.')
+
+@bot.event
+async def on_message_edit(before, after):
+    log_message(after)
 
 @bot.event
 async def on_ready():
